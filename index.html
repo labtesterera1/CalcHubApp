@@ -1124,6 +1124,94 @@ input[type="month"].field-input {
   color: var(--text-dim);
   letter-spacing: .1em;
 }
+
+  /* ── Score Table ── */
+  .score-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+  .score-table th { background: var(--bg); color: var(--text-muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 6px; text-align: center; border: 1px solid var(--border); font-weight: 500; }
+  .score-table td { padding: 7px 6px; text-align: center; border: 1px solid var(--border); font-family: var(--font-mono); }
+  .score-table td.total-col { color: #38bdf8; font-weight: 600; }
+  .score-table td.pct-col   { color: #fcd34d; font-weight: 600; }
+  .score-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+  /* ── Student scorecard sub-tabs ── */
+  .sub-tabs { display:flex; gap:4px; background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:4px; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .sub-tab-btn { flex:1; min-width:100px; background:transparent; border:none; border-radius:6px; padding:9px 12px; font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all .18s; text-align:center; letter-spacing:.04em; }
+  .sub-tab-btn:hover { color:var(--text); background:rgba(255,255,255,.04); }
+  .sub-tab-btn.active { background:rgba(56,189,248,.1); color:#38bdf8; border:1px solid rgba(56,189,248,.3); }
+  .sub-tab-btn.gap-sub.active { background:rgba(251,113,133,.1); color:#fb7185; border:1px solid rgba(251,113,133,.3); }
+
+  /* ── Student header ── */
+  .student-header { background:linear-gradient(135deg,rgba(56,189,248,.08) 0%,rgba(56,189,248,.03) 100%); border:1px solid rgba(56,189,248,.25); border-radius:10px; padding:1.1rem 1.25rem; margin-bottom:1rem; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .student-avatar { width:52px; height:52px; border-radius:50%; background:rgba(56,189,248,.15); border:2px solid rgba(56,189,248,.4); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+  .student-fields { flex:1; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .student-field label { display:block; font-size:10px; color:var(--text-muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; font-family:var(--font-mono); }
+  .student-field input { width:100%; background:var(--bg); border:1px solid rgba(56,189,248,.2); border-radius:6px; color:var(--text); font-family:var(--font-mono); font-size:13px; padding:7px 10px; outline:none; transition:border-color .2s; }
+  .student-field input:focus { border-color:#38bdf8; box-shadow:0 0 0 3px rgba(56,189,248,.1); }
+  @media(max-width:500px) { .student-fields { grid-template-columns:1fr 1fr; } }
+
+  /* ── SSC Legend / Strip ── */
+  .ssc-legend { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .ssc-leg-item { font-size:10px; padding:3px 9px; border-radius:4px; font-family:var(--font-mono); font-weight:500; }
+  .ssc-result-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0; }
+  .ssc-strip-box { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; }
+  .ssc-strip-box.hi { border-color:#38bdf8; background:rgba(56,189,248,.07); }
+  .ssc-strip-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:4px; }
+  .ssc-strip-value { font-family:var(--font-mono); font-size:1.1rem; font-weight:600; color:var(--text); }
+  .ssc-strip-box.hi .ssc-strip-value { color:#38bdf8; }
+  @media(max-width:500px) { .ssc-result-strip { grid-template-columns:1fr 1fr; } }
+
+  /* ── SSC Progress / Grade ── */
+  .ssc-progress-wrap { background:rgba(255,255,255,.05); border-radius:99px; height:12px; overflow:hidden; margin:8px 0 4px; }
+  .ssc-progress-fill { height:100%; border-radius:99px; transition:width .5s ease; }
+  .ssc-grade-card { border-radius:10px; padding:1rem 1.2rem; display:flex; align-items:center; justify-content:space-between; margin-top:10px; flex-wrap:wrap; gap:10px; }
+  .ssc-grade-left { font-family:var(--font-mono); }
+  .ssc-grade-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px; }
+  .ssc-grade-value { font-size:2rem; font-weight:600; line-height:1; }
+  .ssc-grade-desc  { font-size:12px; margin-top:4px; }
+  .ssc-grade-right { text-align:right; font-family:var(--font-mono); }
+  .ssc-grade-pct   { font-size:2.2rem; font-weight:600; line-height:1; }
+  .ssc-grade-sub   { font-size:11px; color:var(--text-muted); margin-top:4px; }
+
+  /* ── Tool card (SSC uses .tool-card) ── */
+  .tool-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.1rem 1.15rem; margin-bottom:10px; }
+  .tool-card-title { font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:12px; }
+  .tool-card-title.ssc { color:#38bdf8; border-left:3px solid #38bdf8; padding-left:8px; }
+  .tool-card-title.gap { color:#fb7185; border-left:3px solid #fb7185; padding-left:8px; }
+
+  /* ── Gap Analysis ── */
+  .sec-badge { font-size:9px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; padding:3px 10px; border-radius:4px; border:1px solid; display:inline-block; margin-bottom:8px; }
+  .sec-title { font-family:var(--font-head); font-size:1.75rem; }
+  .gap-summary { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem 1.15rem; margin-bottom:1rem; }
+  .gap-summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+  .gap-sum-box { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 8px; text-align:center; }
+  .gap-sum-box.hl { border-color:#fb7185; background:rgba(251,113,133,.07); }
+  .gap-sum-label { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:4px; }
+  .gap-sum-value { font-family:var(--font-mono); font-size:1.05rem; font-weight:600; color:var(--text); }
+  .gap-subject-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.15rem; position:relative; overflow:hidden; }
+  .gap-subject-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:10px 0 0 10px; }
+  .gap-subject-card.math::before   { background:#60a5fa; }
+  .gap-subject-card.physics::before { background:#a78bfa; }
+  .gap-subject-card.chem::before   { background:#34d399; }
+  .gap-subject-card.custom::before { background:#fbbf24; }
+  .gap-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:6px; }
+  .gap-subj-name { font-family:var(--font-mono); font-size:13px; font-weight:600; color:var(--text); }
+  .gap-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .gap-chip { font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:4px; font-weight:500; }
+  .gap-chip.obtained  { background:rgba(96,165,250,.1);  color:#93c5fd; border:1px solid rgba(96,165,250,.25); }
+  .gap-chip.maximum   { background:rgba(148,163,184,.1); color:#94a3b8; border:1px solid rgba(148,163,184,.2); }
+  .gap-chip.shortfall { background:rgba(251,113,133,.12); color:#fb7185; border:1px solid rgba(251,113,133,.3); font-weight:700; }
+  .gap-chip.pct-done  { background:rgba(52,211,153,.1);  color:#34d399; border:1px solid rgba(52,211,153,.25); }
+  .gap-bar-wrap { background:rgba(255,255,255,.05); border-radius:99px; height:10px; overflow:hidden; margin-bottom:8px; position:relative; }
+  .gap-bar-fill { height:100%; border-radius:99px; transition:width .4s ease; position:relative; }
+  .gap-bar-target { position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.35); }
+  .gap-target-row { display:flex; align-items:center; gap:8px; margin-top:6px; flex-wrap:wrap; }
+  .gap-target-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .gap-target-chip { font-family:var(--font-mono); font-size:10px; padding:3px 8px; border-radius:4px; border:1px solid var(--border); color:var(--text-muted); cursor:pointer; transition:all .15s; }
+  .gap-target-chip:hover { color:var(--text); border-color:var(--text-muted); }
+  .gap-target-chip.active-t { background:rgba(251,113,133,.15); border-color:#fb7185; color:#fb7185; font-weight:700; }
+  .gap-need-label { font-family:var(--font-mono); font-size:12px; margin-left:auto; }
+  @media(max-width:500px) { .gap-summary-grid { grid-template-columns:1fr 1fr; } }
+
 </style>
 </head>
 
@@ -1229,9 +1317,12 @@ input[type="month"].field-input {
         <button class="hamburger" id="hamburger" aria-label="Menu">
           <span></span><span></span><span></span>
         </button>
-        <div>
-          <div class="topbar-title">CalcHubApp</div>
-          <div class="topbar-module" id="topbar-module">PSM Server · Storage Sizing</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="topbar-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--lime-border);display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex-shrink:0;cursor:pointer;" title="Profile">👤</div>
+          <div>
+            <div class="topbar-title" id="topbar-app-name">CalcHubApp</div>
+            <div class="topbar-module" id="topbar-module">PSM Server · Storage Sizing</div>
+          </div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -1273,6 +1364,19 @@ let activeModuleId  = 'psm';
 let activeModule    = null;
 let deferredInstall = null;
 let profileData     = { name: 'User', avatar: null };
+
+/* ─── Update topbar avatar ─── */
+function updateTopbarAvatar() {
+  const el = document.getElementById('topbar-avatar');
+  const nameEl = document.getElementById('topbar-app-name');
+  if (!el) return;
+  if (profileData.avatar) {
+    el.innerHTML = `<img src="${profileData.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  } else {
+    el.innerHTML = profileData.name ? profileData.name[0].toUpperCase() : '👤';
+  }
+  if (nameEl && profileData.name) nameEl.textContent = profileData.name || 'CalcHubApp';
+}
 
 /* ─── Version ─── */
 const APP_VERSION = '1.0.0';
@@ -1480,6 +1584,7 @@ function renderSettings() {
   document.getElementById('save-profile-btn')?.addEventListener('click', async () => {
     profileData.name = document.getElementById('profile-name')?.value || 'User';
     await Profile.save(profileData);
+    updateTopbarAvatar();
     showToast('✓ Profile saved');
   });
 
@@ -1559,10 +1664,21 @@ function renderBanner(dataUrl) {
       <input type="file" id="banner-file-input" accept="image/*" style="display:none">
     `;
   } else {
+    const bannerSuggestions = [
+      { label: '🌌 Space', url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&q=80&auto=format' },
+      { label: '🌄 Mountain', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80&auto=format' },
+      { label: '🌊 Ocean', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1200&q=80&auto=format' },
+      { label: '🌃 City', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1200&q=80&auto=format' },
+      { label: '🌿 Nature', url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&q=80&auto=format' },
+      { label: '🟩 Grid', url: '' },
+    ];
     section.innerHTML = `
       <div class="banner-placeholder">
         <div class="banner-placeholder-text">CalcHub</div>
-        <button class="banner-change-btn" id="banner-change-btn" style="position:absolute;bottom:10px;right:12px">📷 Add Banner</button>
+        <div style="position:absolute;bottom:10px;left:12px;display:flex;gap:6px;flex-wrap:wrap;">
+          ${bannerSuggestions.filter(s=>s.url).map(s=>`<button onclick="__applyBanner('${s.url}')" style="background:rgba(12,11,9,.7);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:10px;padding:4px 8px;cursor:pointer;backdrop-filter:blur(8px);">${s.label}</button>`).join('')}
+        </div>
+        <button class="banner-change-btn" id="banner-change-btn" style="position:absolute;bottom:10px;right:12px">📷 Upload</button>
       </div>
       <input type="file" id="banner-file-input" accept="image/*" style="display:none">
     `;
@@ -1586,6 +1702,23 @@ function attachBannerEvents() {
     };
     reader.readAsDataURL(file);
   });
+}
+
+/* ─── Apply suggested banner ─── */
+async function __applyBanner(url) {
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      await Settings.set('bannerImage', ev.target.result);
+      renderBanner(ev.target.result);
+      showToast('✓ Banner applied');
+    };
+    reader.readAsDataURL(blob);
+  } catch {
+    showToast('✗ Could not load image (offline?)');
+  }
 }
 
 /* ─── Toast ─── */
@@ -1635,6 +1768,19 @@ async function startup() {
   // Load profile
   const saved = await Profile.load();
   if (saved) profileData = { ...profileData, ...saved };
+
+  // Update topbar avatar
+  updateTopbarAvatar();
+
+  // Topbar avatar click → go to settings
+  document.getElementById('topbar-avatar')?.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('[data-module="settings"]')?.classList.add('active');
+    document.getElementById('topbar-module').textContent = 'Settings';
+    if (activeModule?.cleanup) activeModule.cleanup();
+    activeModule = null;
+    renderSettings();
+  });
 
   // Restore banner
   const bannerUrl = await Settings.get('bannerImage');
