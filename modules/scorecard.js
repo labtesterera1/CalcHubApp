@@ -13,6 +13,8 @@ export const scorecardModule = {
   accentRgb: '56,189,248',
 
   /* ── State ── */
+  studentPhoto: null,   // base64 data URL of student pic
+
   SSC_DEFAULT: [
     { name:'Mathematics', obt:78, max:90,  rank:208 },
     { name:'Physics',     obt:45, max:60,  rank:442 },
@@ -42,7 +44,16 @@ export const scorecardModule = {
 
       <!-- Student info header -->
       <div class="student-header">
-        <div class="student-avatar">🎓</div>
+        <!-- Student photo upload -->
+        <div class="student-pic-wrap" id="ssc-pic-wrap" onclick="document.getElementById('ssc-pic-input').click()" title="Tap to add student photo">
+          <div class="student-pic-inner" id="ssc-pic-inner">
+            <span class="student-pic-icon">🎓</span>
+            <span class="student-pic-hint">Add<br>Photo</span>
+          </div>
+          <div class="student-pic-ring"></div>
+          <div class="student-pic-badge">📷</div>
+        </div>
+        <input type="file" id="ssc-pic-input" accept="image/*" style="display:none">
         <div class="student-fields">
           <div class="student-field">
             <label>Student Name</label>
@@ -84,9 +95,12 @@ export const scorecardModule = {
 
         <!-- Student name banner above table -->
         <div id="ssc-name-banner" style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:6px;padding:8px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-          <div>
-            <span style="font-size:10px;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Student</span>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#38bdf8;" id="ssc-banner-name">—</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div id="ssc-report-pic" style="width:36px;height:36px;border-radius:50%;background:rgba(56,189,248,.15);border:2px solid rgba(56,189,248,.4);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0;">🎓</div>
+            <div>
+              <span style="font-size:10px;color:var(--text-muted);letter-spacing:0.1em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Student</span>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#38bdf8;" id="ssc-banner-name">—</div>
+            </div>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
             <div><div style="font-size:10px;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;font-family:'JetBrains Mono',monospace;">Class</div><div style="font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;" id="ssc-banner-class">—</div></div>
@@ -226,10 +240,41 @@ export const scorecardModule = {
     this.gapTargets  = {};
     this.renderRows();
     this.updateTotals();
+
+    /* Wire student photo input */
+    const picInput = document.getElementById('ssc-pic-input');
+    if (picInput) {
+      picInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          this.studentPhoto = ev.target.result;
+          this._renderStudentPic(ev.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /* Restore saved photo if any */
+    if (this.studentPhoto) {
+      this._renderStudentPic(this.studentPhoto);
+    }
   },
 
   cleanup() {
     delete window.__ssc;
+  },
+
+  _renderStudentPic(src) {
+    const inner = document.getElementById('ssc-pic-inner');
+    if (!inner) return;
+    inner.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    inner.style.padding = '0';
+    inner.style.flexDirection = 'row';
+    // Also update report card photo if visible
+    const reportPic = document.getElementById('ssc-report-pic');
+    if (reportPic) reportPic.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
   },
 
   switchSub(sub) {
@@ -408,6 +453,12 @@ export const scorecardModule = {
     this.sscRows = JSON.parse(JSON.stringify(this.SSC_DEFAULT));
     const tr = document.getElementById('ssc-tot-rank');
     if (tr) tr.value = '';
+    // Reset photo
+    this.studentPhoto = null;
+    const inner = document.getElementById('ssc-pic-inner');
+    if (inner) { inner.innerHTML = '<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>'; inner.style.padding=''; inner.style.flexDirection=''; }
+    const rp = document.getElementById('ssc-report-pic');
+    if (rp) rp.innerHTML = '🎓';
     this.renderRows();
     this.updateTotals();
   },
@@ -418,6 +469,7 @@ export const scorecardModule = {
       info: { name: el('ssc-name')?.value, cls: el('ssc-class')?.value, exam: el('ssc-exam')?.value, roll: el('ssc-roll')?.value, school: el('ssc-school')?.value, year: el('ssc-year')?.value },
       rows: JSON.parse(JSON.stringify(this.sscRows)),
       totalRank: el('ssc-tot-rank')?.value,
+      studentPhoto: this.studentPhoto || null,
       savedAt: new Date().toLocaleString()
     };
     localStorage.setItem('ssc_saved', JSON.stringify(data));
@@ -440,6 +492,11 @@ export const scorecardModule = {
     this.sscRows = data.rows;
     this.renderRows();
     this.updateTotals();
+    // Restore student photo
+    if (data.studentPhoto) {
+      this.studentPhoto = data.studentPhoto;
+      this._renderStudentPic(data.studentPhoto);
+    }
     const msg = el('ssc-save-msg');
     if (msg) { msg.textContent = '✓ Loaded (saved '+(data.savedAt||'—')+')'; msg.style.color='#fcd34d'; msg.style.display='inline'; setTimeout(()=>{ msg.style.display='none'; msg.style.color='#34d399'; },4000); }
   },
