@@ -1536,10 +1536,31 @@ input[type="month"].field-input {
   <!-- ════ SIDEBAR ════ -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-mark">
-        <span class="logo-bracket">[</span>CalcHub<span class="logo-bracket">]</span>
+      <div class="app-logo-wrap">
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer ring -->
+          <circle cx="21" cy="21" r="20" stroke="#d4ff3a" stroke-width="1.5" fill="none" opacity="0.9"/>
+          <!-- Inner dark fill -->
+          <circle cx="21" cy="21" r="17" fill="#0c0b09"/>
+          <!-- Corner bracket top-left -->
+          <path d="M10 10 L10 15 M10 10 L15 10" stroke="#d4ff3a" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Corner bracket bottom-right -->
+          <path d="M32 32 L32 27 M32 32 L27 32" stroke="#d4ff3a" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- C letterform -->
+          <path d="M26 15 Q19 13 16 19 Q13 25 17 29 Q20 32 26 30" stroke="#d4ff3a" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <!-- Hub dot -->
+          <circle cx="21" cy="21" r="2" fill="#d4ff3a"/>
+          <!-- Tick marks -->
+          <line x1="21" y1="2" x2="21" y2="5" stroke="#d4ff3a" stroke-width="1" opacity="0.4"/>
+          <line x1="21" y1="37" x2="21" y2="40" stroke="#d4ff3a" stroke-width="1" opacity="0.4"/>
+          <line x1="2" y1="21" x2="5" y2="21" stroke="#d4ff3a" stroke-width="1" opacity="0.4"/>
+          <line x1="37" y1="21" x2="40" y2="21" stroke="#d4ff3a" stroke-width="1" opacity="0.4"/>
+        </svg>
+        <div>
+          <div class="logo-name">CalcHub</div>
+          <div class="logo-sub">v1.0.0 · Professional Suite</div>
+        </div>
       </div>
-      <div class="logo-sub">v1.0.0 · Professional Suite</div>
     </div>
 
     <nav class="sidebar-nav">
@@ -1628,7 +1649,7 @@ input[type="month"].field-input {
           <div id="topbar-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--lime-border);display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden;flex-shrink:0;cursor:pointer;" title="Profile">👤</div>
           <div>
             <div class="topbar-title" id="topbar-app-name">CalcHubApp</div>
-            <div class="topbar-module" id="topbar-module">PSM Server · Storage Sizing</div>
+            <div id="topbar-module" style="display:none;"></div>
           </div>
         </div>
       </div>
