@@ -14,6 +14,7 @@ export const scorecardModule = {
 
   /* ── State ── */
   studentPhoto: null,   // base64 data URL of student pic
+  _autoSaveTimer: null, // debounce handle for auto-save
 
   SSC_DEFAULT: [
     { name:'Mathematics', obt:78, max:90,  rank:208 },
@@ -288,19 +289,93 @@ export const scorecardModule = {
       });
     }
 
-    /* Restore saved photo from localStorage on every init */
-    const savedPhoto = localStorage.getItem('ch__ssc_photo')
-                    || localStorage.getItem('ch_ssc_photo')
-                    || null;
-    if (savedPhoto) {
-      this.studentPhoto = savedPhoto;
-      this._renderStudentPic(savedPhoto);
-      console.log('[SSC] Photo restored from localStorage ✓');
-    }
+    /* ── Restore ALL saved data on every init ── */
+    this._restoreFromStorage();
   },
 
   cleanup() {
+    if (this._autoSaveTimer) clearTimeout(this._autoSaveTimer);
     delete window.__ssc;
+  },
+
+  /* ── Debounced auto-save: waits 800ms after last change ── */
+  _scheduleAutoSave() {
+    if (this._autoSaveTimer) clearTimeout(this._autoSaveTimer);
+    this._autoSaveTimer = setTimeout(() => {
+      this._autoSave();
+    }, 800);
+  },
+
+  _autoSave() {
+    const el = (id) => document.getElementById(id);
+    const data = {
+      info: {
+        name:   el('ssc-name')?.value   || '',
+        cls:    el('ssc-class')?.value  || '',
+        exam:   el('ssc-exam')?.value   || '',
+        roll:   el('ssc-roll')?.value   || '',
+        school: el('ssc-school')?.value || '',
+        year:   el('ssc-year')?.value   || ''
+      },
+      rows:      JSON.parse(JSON.stringify(this.sscRows)),
+      totalRank: el('ssc-tot-rank')?.value || '',
+      savedAt:   new Date().toLocaleString(),
+      autoSaved: true
+    };
+    const dataStr = JSON.stringify(data);
+    try {
+      localStorage.setItem('ch__ssc_data', dataStr);
+      localStorage.setItem('ssc_saved', dataStr); // legacy backup
+      console.log('[SSC] Auto-saved ✓', data.info.name || '(no name)');
+    } catch(e) {
+      console.warn('[SSC] Auto-save failed:', e.name);
+    }
+  },
+
+  _restoreFromStorage() {
+    // Restore student info fields
+    let saved = null;
+    try {
+      const raw = localStorage.getItem('ch__ssc_data')
+               || localStorage.getItem('ssc_saved')
+               || localStorage.getItem('ch_ssc_data');
+      if (raw) saved = JSON.parse(raw);
+    } catch(e) { console.warn('[SSC] Restore parse error:', e); }
+
+    if (saved) {
+      const el = (id) => document.getElementById(id);
+      if (saved.info) {
+        if (el('ssc-name'))   el('ssc-name').value   = saved.info.name   || '';
+        if (el('ssc-class'))  el('ssc-class').value  = saved.info.cls    || '';
+        if (el('ssc-exam'))   el('ssc-exam').value   = saved.info.exam   || '';
+        if (el('ssc-roll'))   el('ssc-roll').value   = saved.info.roll   || '';
+        if (el('ssc-school')) el('ssc-school').value = saved.info.school || '';
+        if (el('ssc-year'))   el('ssc-year').value   = saved.info.year   || '';
+      }
+      if (el('ssc-tot-rank') && saved.totalRank)
+        el('ssc-tot-rank').value = saved.totalRank;
+
+      // Restore subject rows
+      if (saved.rows && saved.rows.length > 0) {
+        this.sscRows = saved.rows;
+        this.renderRows();
+      }
+
+      this.updateTotals();
+      console.log('[SSC] Student data restored ✓', saved.info?.name || '');
+    }
+
+    // Restore photo separately
+    try {
+      const photo = localStorage.getItem('ch__ssc_photo')
+                 || localStorage.getItem('ch_ssc_photo')
+                 || null;
+      if (photo) {
+        this.studentPhoto = photo;
+        this._renderStudentPic(photo);
+        console.log('[SSC] Photo restored ✓');
+      }
+    } catch(e) { console.warn('[SSC] Photo restore error:', e); }
   },
 
   _renderStudentPic(src) {
@@ -397,6 +472,7 @@ export const scorecardModule = {
       }
       this.updateRow(idx);
       this.updateTotals();
+      this._scheduleAutoSave(); // auto-save on every mark change
     };
   },
 
@@ -483,9 +559,9 @@ export const scorecardModule = {
     }
   },
 
-  calc()   { this.updateTotals(); },
-  addRow() { this.sscRows.push({ name:'New Subject', obt:0, max:100, rank:0 }); this.renderRows(); this.updateTotals(); },
-  delRow(i){ this.sscRows.splice(i,1); this.renderRows(); this.updateTotals(); },
+  calc()   { this.updateTotals(); this._scheduleAutoSave(); },
+  addRow() { this.sscRows.push({ name:'New Subject', obt:0, max:100, rank:0 }); this.renderRows(); this.updateTotals(); this._scheduleAutoSave(); },
+  delRow(i){ this.sscRows.splice(i,1); this.renderRows(); this.updateTotals(); this._scheduleAutoSave(); },
   reset()  {
     this.sscRows = JSON.parse(JSON.stringify(this.SSC_DEFAULT));
     const tr = document.getElementById('ssc-tot-rank');
