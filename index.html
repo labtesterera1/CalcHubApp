@@ -2067,7 +2067,7 @@ input[type="month"].field-input {
 <script type="module">
 /* ─── Imports ─── */
 import { MODULES, getModule } from './modules/registry.js';
-import { Settings, History, Profile, exportAllData, importAllData, openDB } from './modules/storage.js';
+import { Settings, Profile, Banner, ScorecardStore, ModuleData, exportAllData, importAllData, openDB, requestPersistence, getStorageEstimate } from './modules/storage.js';
 
 /* ─── App State ─── */
 let activeModuleId  = 'psm';
@@ -2117,8 +2117,27 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => { console.log('[CalcHub] SW registered', reg.scope); })
+      .then(reg => {
+        console.log('[CalcHub] SW registered', reg.scope);
+        // Detect SW update and notify user
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('↑ Update available — tap to refresh', 6000);
+              // Auto-apply after 6s
+              setTimeout(() => { newWorker.postMessage('SKIP_WAITING'); location.reload(); }, 6000);
+            }
+          });
+        });
+      })
       .catch(err => { console.warn('[CalcHub] SW failed:', err); });
+
+    // When SW takes control, reload once for fresh cache
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) { refreshing = true; }
+    });
   });
 }
 
@@ -2155,7 +2174,7 @@ function showHomeScreen() {
     : 'Hello 👋';
 
   // Persist
-  Settings.set('lastModule', '__home__');
+  Settings.set('lastModule', '__home__').catch(() => {});
 
   // Scroll to top
   document.getElementById('content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2267,7 +2286,7 @@ async function loadModule(id) {
   document.getElementById('content-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
 
   // Persist last-used module
-  await Settings.set('lastModule', id);
+  try { await Settings.set('lastModule', id); } catch(e) { console.warn('[Storage] lastModule save failed:', e); }
 }
 
 /* ─── Settings module renderer (inline, not in modules/registry) ─── */
@@ -2314,10 +2333,24 @@ function renderSettings() {
       </div>
       <div class="settings-row">
         <div class="settings-row-info">
-          <div class="settings-row-label">Offline Status</div>
+          <div class="settings-row-label">Offline / SW Status</div>
           <div class="settings-row-desc">Service worker caches all modules for offline use.</div>
         </div>
         <span class="version-tag" id="sw-status">Checking…</span>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <div class="settings-row-label">Persistent Storage</div>
+          <div class="settings-row-desc">Prevents browser from clearing your data. Required for reliable save on Android.</div>
+        </div>
+        <button class="calc-btn-sm green" id="persist-btn">Request</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <div class="settings-row-label">Storage Usage</div>
+          <div class="settings-row-desc" id="storage-usage-desc">Calculating…</div>
+        </div>
+        <span class="version-tag" id="storage-usage-tag">—</span>
       </div>
       <div class="settings-row">
         <div class="settings-row-info">
@@ -2385,9 +2418,46 @@ function renderSettings() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => {
       const el = document.getElementById('sw-status');
-      if (el) el.textContent = regs.length ? '✓ Cached' : 'Pending';
+      if (el) el.textContent = regs.length ? '✓ Active' : 'Pending';
     });
   }
+
+  // Show persistent storage status
+  if (navigator.storage?.persisted) {
+    navigator.storage.persisted().then(p => {
+      const btn = document.getElementById('persist-btn');
+      if (btn) {
+        btn.textContent = p ? '✓ Granted' : 'Request';
+        btn.style.color = p ? 'var(--green)' : '';
+        btn.disabled = p;
+      }
+    });
+  }
+
+  // Persist button click
+  document.getElementById('persist-btn')?.addEventListener('click', async () => {
+    const granted = await requestPersistence();
+    const btn = document.getElementById('persist-btn');
+    if (btn) {
+      btn.textContent = granted ? '✓ Granted' : '✗ Denied';
+      btn.style.color = granted ? 'var(--green)' : '#f87171';
+      btn.disabled = granted;
+    }
+    showToast(granted ? '✓ Persistent storage granted!' : '✗ Browser denied — try installing the app');
+  });
+
+  // Show storage usage
+  getStorageEstimate().then(est => {
+    const desc = document.getElementById('storage-usage-desc');
+    const tag  = document.getElementById('storage-usage-tag');
+    if (est) {
+      if (desc) desc.textContent = `Using ${est.usedMB} MB of ${est.quotaMB} MB available (${est.pct}%)`;
+      if (tag)  tag.textContent  = est.usedMB + ' MB';
+    } else {
+      if (desc) desc.textContent = 'Storage estimate not available in this browser';
+      if (tag)  tag.textContent  = 'N/A';
+    }
+  });
 
   // Avatar display
   if (profileData.avatar) {
@@ -2435,7 +2505,7 @@ function renderSettings() {
     document.getElementById('banner-file-input')?.click();
   });
   document.getElementById('remove-banner-btn')?.addEventListener('click', async () => {
-    await Settings.set('bannerImage', null);
+    Banner.clear();
     renderBanner(null);
     showToast('Banner removed');
   });
@@ -2475,10 +2545,15 @@ function renderSettings() {
   // Clear all
   document.getElementById('clear-all-btn')?.addEventListener('click', async () => {
     if (!confirm('Clear ALL CalcHubApp data? This cannot be undone.')) return;
-    ['settings','history','profiles','exports'].forEach(s => {
-      try { localStorage.removeItem(s); } catch {}
+    // Clear all known localStorage keys
+    const lsKeys = ['ch_banner','ch_profile_avatar','ch_ssc_photo','profile_meta','ssc_data'];
+    lsKeys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+    // Clear all ch_ prefixed keys
+    Object.keys(localStorage).filter(k => k.startsWith('ch_') || k.startsWith('idb_mirror')).forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
     });
-    indexedDB.deleteDatabase('CalcHubApp');
+    // Delete IndexedDB
+    try { indexedDB.deleteDatabase('CalcHubApp'); } catch {}
     showToast('✓ All data cleared — reloading…');
     setTimeout(() => location.reload(), 1500);
   });
@@ -2530,7 +2605,7 @@ function attachBannerEvents() {
     const reader = new FileReader();
     reader.onload = async ev => {
       const dataUrl = ev.target.result;
-      await Settings.set('bannerImage', dataUrl);
+      Banner.save(dataUrl);
       renderBanner(dataUrl);
       showToast('✓ Banner updated');
     };
@@ -2545,7 +2620,7 @@ async function __applyBanner(url) {
     const blob = await resp.blob();
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      await Settings.set('bannerImage', ev.target.result);
+      Banner.save(ev.target.result);
       renderBanner(ev.target.result);
       showToast('✓ Banner applied');
     };
@@ -2598,7 +2673,16 @@ document.querySelectorAll('.nav-btn[data-module]').forEach(btn => {
 
 /* ─── Startup ─── */
 async function startup() {
-  await openDB();
+  // Request persistent storage first — must be called early
+  const persisted = await requestPersistence();
+  console.log('[CalcHub] Persistent storage:', persisted ? 'GRANTED' : 'denied/unavailable');
+
+  try {
+    await openDB();
+    console.log('[CalcHub] IndexedDB ready');
+  } catch(e) {
+    console.warn('[CalcHub] IndexedDB unavailable (private mode?), using localStorage only:', e);
+  }
 
   // Load profile
   const saved = await Profile.load();
@@ -2621,7 +2705,7 @@ async function startup() {
   });
 
   // Restore banner
-  const bannerUrl = await Settings.get('bannerImage');
+  const bannerUrl = Banner.load();
   renderBanner(bannerUrl);
 
   // Build home grid

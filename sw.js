@@ -1,13 +1,16 @@
 /* ============================================================
-   CalcHubApp — Service Worker  v1.0.0
-   Warm-black / lime-accent offline-first PWA
+   CalcHubApp — Service Worker  v2.0
+   Cache-first for assets, network-first for navigation
+   Fixed: removed non-existent ui.js, correct cache busting
    ============================================================ */
 
-const CACHE_NAME   = 'calchubapp-v1.0.0';
-const ASSETS = [
-  './',
+const CACHE_NAME = 'calchubapp-v2.0';
+
+const STATIC_ASSETS = [
   './index.html',
   './manifest.json',
+  './modules/registry.js',
+  './modules/storage.js',
   './modules/psm.js',
   './modules/vault.js',
   './modules/unit-converter.js',
@@ -15,55 +18,86 @@ const ASSETS = [
   './modules/loan-emi.js',
   './modules/date-age.js',
   './modules/time-converter.js',
-  './modules/registry.js',
-  './modules/storage.js',
-  './modules/ui.js',
-  'https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap'
 ];
 
-/* ── Install: cache all shell assets ── */
+/* ── Install: pre-cache all app shell files ── */
 self.addEventListener('install', evt => {
   self.skipWaiting();
   evt.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(ASSETS.map(url => {
-        return new Request(url, { mode: url.startsWith('http') ? 'cors' : 'same-origin' });
-      })).catch(() => {/* fonts may fail offline, ok */})
-    )
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url =>
+          cache.add(new Request(url, { cache: 'reload' }))
+            .catch(e => console.warn('[SW] Failed to cache:', url, e))
+        )
+      );
+    })
   );
 });
 
-/* ── Activate: delete old caches ── */
+/* ── Activate: wipe all old caches ── */
 self.addEventListener('activate', evt => {
   evt.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
+    caches.keys()
+      .then(keys => Promise.all(
         keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-/* ── Fetch: network-first with cache fallback ── */
+/* ── Fetch strategy:
+      JS/CSS/HTML modules → cache-first (fast, offline works)
+      Navigation (index.html) → network-first with cache fallback
+      Everything else → network only
+   ── */
 self.addEventListener('fetch', evt => {
-  if (evt.request.method !== 'GET') return;
+  const url = new URL(evt.request.url);
 
-  evt.respondWith(
-    fetch(evt.request)
-      .then(res => {
-        if (res && res.status === 200) {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(evt.request, copy));
-        }
-        return res;
+  // Skip non-GET and cross-origin (fonts etc)
+  if (evt.request.method !== 'GET') return;
+  if (url.origin !== self.location.origin) return;
+
+  // App shell files → cache first, update cache in background
+  const isShellFile = STATIC_ASSETS.some(a => url.pathname.endsWith(a.replace('./', '/')));
+  const isRoot      = url.pathname === '/' || url.pathname.endsWith('/index.html');
+
+  if (isRoot) {
+    // Network-first for main page (get latest)
+    evt.respondWith(
+      fetch(evt.request)
+        .then(res => {
+          if (res && res.status === 200) {
+            caches.open(CACHE_NAME).then(c => c.put(evt.request, res.clone()));
+          }
+          return res;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  if (isShellFile) {
+    // Cache-first for modules
+    evt.respondWith(
+      caches.match(evt.request).then(cached => {
+        const networkFetch = fetch(evt.request).then(res => {
+          if (res && res.status === 200) {
+            caches.open(CACHE_NAME).then(c => c.put(evt.request, res.clone()));
+          }
+          return res;
+        });
+        return cached || networkFetch;
       })
-      .catch(() => caches.match(evt.request))
-  );
+    );
+    return;
+  }
 });
 
-/* ── Background sync stub (future) ── */
-self.addEventListener('sync', evt => {
-  if (evt.tag === 'calchub-sync') {
-    console.log('[CalcHub SW] Background sync triggered');
+/* ── Message: force cache update ── */
+self.addEventListener('message', evt => {
+  if (evt.data === 'SKIP_WAITING') self.skipWaiting();
+  if (evt.data === 'CLEAR_CACHE') {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
   }
 });
