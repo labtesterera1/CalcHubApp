@@ -16,7 +16,13 @@ export const unitConverterModule = {
   render() {
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#f59e0b;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3)">TOOL · CONVERTER</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#f59e0b;background:#f59e0b1a;border-color:#f59e0b4d">TOOL · CONVERTER</span>
+      </div>
       <h2 class="mod-title" style="color:#f59e0b">Storage Unit Converter</h2>
     </div>
 

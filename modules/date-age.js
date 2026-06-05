@@ -20,7 +20,13 @@ export const dateAgeModule = {
 
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#34d399;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3)">CALC · DATE & AGE</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#34d399;background:#34d3991a;border-color:#34d3994d">CALC · DATE & AGE</span>
+      </div>
       <h2 class="mod-title" style="color:#34d399">Date & Age Calculator</h2>
     </div>
 

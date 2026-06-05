@@ -17,7 +17,13 @@ export const psmModule = {
   render() {
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#d4ff3a;background:rgba(212,255,58,.1);border-color:rgba(212,255,58,.3)">NIK · PSM SERVER</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#d4ff3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#d4ff3a;background:#d4ff3a1a;border-color:#d4ff3a4d">NIK · PSM SERVER</span>
+      </div>
       <h2 class="mod-title" style="color:#d4ff3a">PSM Storage Sizing</h2>
     </div>
 

@@ -17,7 +17,13 @@ export const timeConverterModule = {
   render() {
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#c084fc;background:rgba(192,132,252,.1);border-color:rgba(192,132,252,.3)">TOOL · TIME</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#c084fc;background:#c084fc1a;border-color:#c084fc4d">TOOL · TIME</span>
+      </div>
       <h2 class="mod-title" style="color:#c084fc">Time Converter</h2>
     </div>
 

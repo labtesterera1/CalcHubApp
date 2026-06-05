@@ -17,7 +17,13 @@ export const vaultModule = {
   render() {
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#0096ff;background:rgba(0,150,255,.1);border-color:rgba(0,150,255,.3)">NIK · VAULT SERVER</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#0096ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#0096ff;background:#0096ff1a;border-color:#0096ff4d">NIK · VAULT SERVER</span>
+      </div>
       <h2 class="mod-title" style="color:#0096ff">Vault Storage Sizing</h2>
     </div>
 

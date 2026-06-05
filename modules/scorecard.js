@@ -28,7 +28,13 @@ export const scorecardModule = {
   render() {
     return `
     <div class="mod-header">
-      <span class="mod-badge" style="color:#38bdf8;background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3)">STUDENT · REPORT</span>
+      <div class="mod-header-top">
+        <button class="mod-back-btn" onclick="window.__goHome()" title="Back to Home">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Home
+        </button>
+        <span class="mod-badge" style="color:#38bdf8;background:#38bdf81a;border-color:#38bdf84d">STUDENT · REPORT</span>
+      </div>
       <h2 class="mod-title" style="color:#38bdf8">Student Score Card</h2>
     </div>
 
@@ -457,6 +463,7 @@ export const scorecardModule = {
     this.studentPhoto = null;
     const inner = document.getElementById('ssc-pic-inner');
     if (inner) { inner.innerHTML = '<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>'; inner.style.padding=''; inner.style.flexDirection=''; }
+    try { localStorage.removeItem('ch__ssc_photo'); localStorage.removeItem('ch_ssc_photo'); } catch {}
     const rp = document.getElementById('ssc-report-pic');
     if (rp) rp.innerHTML = '🎓';
     this.renderRows();
@@ -473,11 +480,12 @@ export const scorecardModule = {
     };
     // Save text data to multiple keys for resilience
     const dataStr = JSON.stringify(data);
-    try { localStorage.setItem('ch_ssc_data', dataStr); } catch(e) { console.warn('[SSC] Save failed:', e); }
-    try { localStorage.setItem('ssc_saved', dataStr); } catch(e) {} // legacy key backup
+    try { localStorage.setItem('ch__ssc_data', dataStr); } catch(e) { console.warn('[SSC] Save failed:', e); }
+    try { localStorage.setItem('ssc_saved', dataStr); } catch(e) {} // legacy backup
+    try { localStorage.setItem('ch_ssc_data', dataStr); } catch(e) {} // old prefix backup
     // Save photo separately (large base64)
     if (this.studentPhoto) {
-      try { localStorage.setItem('ch_ssc_photo', this.studentPhoto); } catch(e) { console.warn('[SSC] Photo save failed (too large?):', e); }
+      try { localStorage.setItem('ch__ssc_photo', this.studentPhoto); } catch(e) { console.warn('[SSC] Photo save failed (too large?):', e); }
     }
     const msg = el('ssc-save-msg');
     if (msg) { msg.textContent = '✓ Saved at ' + data.savedAt; msg.style.display = 'inline'; setTimeout(() => { msg.style.display='none'; }, 3000); }
@@ -486,7 +494,7 @@ export const scorecardModule = {
   load() {
     // Try new key first, fall back to legacy key
     let raw = null;
-    try { raw = localStorage.getItem('ch_ssc_data') || localStorage.getItem('ssc_saved'); } catch(e) {}
+    try { raw = localStorage.getItem('ch__ssc_data') || localStorage.getItem('ch_ssc_data') || localStorage.getItem('ssc_saved'); } catch(e) {}
     if (!raw) { alert('No saved data found. Please save first using the 💾 Save button.'); return; }
     let data;
     try { data = JSON.parse(raw); } catch(e) { alert('Saved data is corrupted.'); return; }
@@ -502,7 +510,7 @@ export const scorecardModule = {
     this.renderRows();
     this.updateTotals();
     // Restore student photo from separate key
-    const photo = localStorage.getItem('ch_ssc_photo') || data.studentPhoto || null;
+    const photo = localStorage.getItem('ch__ssc_photo') || localStorage.getItem('ch_ssc_photo') || data.studentPhoto || null;
     if (photo) { this.studentPhoto = photo; this._renderStudentPic(photo); }
     const msg = el('ssc-save-msg');
     if (msg) { msg.textContent = '✓ Loaded (saved '+(data.savedAt||'—')+')'; msg.style.color='#fcd34d'; msg.style.display='inline'; setTimeout(()=>{ msg.style.display='none'; msg.style.color='#34d399'; },4000); }
