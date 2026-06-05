@@ -2546,13 +2546,38 @@ function renderSettings() {
   avatarFile?.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      profileData.avatar = ev.target.result;
+
+    // Compress to max 300×300 JPEG before storing
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 300;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.round(img.width  * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+      // Update memory
+      profileData.avatar = dataUrl;
+
+      // AUTO-SAVE avatar to localStorage immediately
+      try {
+        localStorage.setItem('ch__profile_avatar', dataUrl);
+        console.log('[Profile] Avatar auto-saved to localStorage ✓');
+      } catch(e) {
+        console.warn('[Profile] Avatar auto-save failed:', e.name);
+      }
+
+      // Update UI
       const ph = document.getElementById('avatar-placeholder');
-      if (ph) ph.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      if (ph) ph.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+      updateTopbarAvatar();
     };
-    reader.readAsDataURL(file);
+    img.src = objectUrl;
   });
 
   // Save profile
@@ -2760,9 +2785,20 @@ async function startup() {
     console.log('[CalcHub] Persistent storage:', granted ? 'GRANTED ✓' : 'not granted (install PWA for protection)');
   }).catch(() => {});
 
-  // Load profile
-  const saved = await Profile.load();
-  if (saved) profileData = { ...profileData, ...saved };
+  // Load profile — try IDB via Profile.load(), fallback to localStorage directly
+  try {
+    const saved = await Profile.load();
+    if (saved) profileData = { ...profileData, ...saved };
+  } catch(e) {
+    console.warn('[Startup] Profile.load failed, reading LS directly:', e);
+    // Direct localStorage fallback
+    try {
+      const metaRaw = localStorage.getItem('ch__profile_meta');
+      if (metaRaw) Object.assign(profileData, JSON.parse(metaRaw));
+    } catch {}
+    const avatar = localStorage.getItem('ch__profile_avatar');
+    if (avatar) profileData.avatar = avatar;
+  }
 
   // Update topbar avatar
   updateTopbarAvatar();
