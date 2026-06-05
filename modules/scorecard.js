@@ -253,18 +253,49 @@ export const scorecardModule = {
       picInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          this.studentPhoto = ev.target.result;
-          this._renderStudentPic(ev.target.result);
+
+        // Compress image before storing to avoid quota errors
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          // Draw onto canvas at max 400×400, quality 0.75
+          const MAX = 400;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const w = Math.round(img.width  * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+          // Save to memory
+          this.studentPhoto = dataUrl;
+
+          // AUTO-SAVE to localStorage immediately — no need to click Save
+          try {
+            localStorage.setItem('ch__ssc_photo', dataUrl);
+            console.log('[SSC] Photo auto-saved to localStorage ✓');
+          } catch(e) {
+            console.warn('[SSC] Photo auto-save failed (still in memory):', e.name);
+          }
+
+          // Render
+          this._renderStudentPic(dataUrl);
         };
-        reader.readAsDataURL(file);
+        img.src = objectUrl;
       });
     }
 
-    /* Restore saved photo if any */
-    if (this.studentPhoto) {
-      this._renderStudentPic(this.studentPhoto);
+    /* Restore saved photo from localStorage on every init */
+    const savedPhoto = localStorage.getItem('ch__ssc_photo')
+                    || localStorage.getItem('ch_ssc_photo')
+                    || null;
+    if (savedPhoto) {
+      this.studentPhoto = savedPhoto;
+      this._renderStudentPic(savedPhoto);
+      console.log('[SSC] Photo restored from localStorage ✓');
     }
   },
 

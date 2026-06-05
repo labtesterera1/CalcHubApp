@@ -229,23 +229,38 @@ export const Banner = {
 export const Profile = {
   async save(data) {
     const { avatar, ...meta } = data;
-    // Save meta to dual storage
-    await dbSet('profiles', 'main', meta);
-    lsSet('ch__profile_meta', meta);
-    // Save avatar to localStorage (large base64)
+    // Save meta — dual write IDB + localStorage
+    try { await idbSet('profiles', 'main', meta); } catch(e) {
+      console.warn('[Profile.save] IDB failed:', e.message);
+    }
+    // Always write to localStorage directly (reliable)
+    try { localStorage.setItem('ch__profile_meta', JSON.stringify(meta)); } catch {}
+    // Avatar in localStorage
     if (avatar) {
       try { localStorage.setItem('ch__profile_avatar', avatar); } catch (e) {
-        console.warn('[Profile] Avatar too large:', e.name);
+        console.warn('[Profile] Avatar too large for LS:', e.name);
       }
     } else {
-      lsDel('ch__profile_avatar');
+      try { localStorage.removeItem('ch__profile_avatar'); } catch {}
     }
   },
   async load() {
     let meta = null;
-    try { meta = await idbGet('profiles', 'main'); } catch {}
-    if (!meta) meta = lsGet('ch__profile_meta');
-    const avatar = localStorage.getItem('ch__profile_avatar') || null;
+    // Try IDB first
+    try { meta = await idbGet('profiles', 'main'); } catch(e) {
+      console.warn('[Profile.load] IDB failed:', e.message);
+    }
+    // Fallback to localStorage
+    if (!meta) {
+      try {
+        const raw = localStorage.getItem('ch__profile_meta');
+        if (raw) meta = JSON.parse(raw);
+      } catch {}
+    }
+    // Avatar always from localStorage (large base64)
+    const avatar = (() => {
+      try { return localStorage.getItem('ch__profile_avatar') || null; } catch { return null; }
+    })();
     if (!meta && !avatar) return null;
     return { ...(meta || {}), avatar };
   }
