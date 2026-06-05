@@ -469,34 +469,41 @@ export const scorecardModule = {
       info: { name: el('ssc-name')?.value, cls: el('ssc-class')?.value, exam: el('ssc-exam')?.value, roll: el('ssc-roll')?.value, school: el('ssc-school')?.value, year: el('ssc-year')?.value },
       rows: JSON.parse(JSON.stringify(this.sscRows)),
       totalRank: el('ssc-tot-rank')?.value,
-      studentPhoto: this.studentPhoto || null,
       savedAt: new Date().toLocaleString()
     };
-    localStorage.setItem('ssc_saved', JSON.stringify(data));
+    // Save text data to multiple keys for resilience
+    const dataStr = JSON.stringify(data);
+    try { localStorage.setItem('ch_ssc_data', dataStr); } catch(e) { console.warn('[SSC] Save failed:', e); }
+    try { localStorage.setItem('ssc_saved', dataStr); } catch(e) {} // legacy key backup
+    // Save photo separately (large base64)
+    if (this.studentPhoto) {
+      try { localStorage.setItem('ch_ssc_photo', this.studentPhoto); } catch(e) { console.warn('[SSC] Photo save failed (too large?):', e); }
+    }
     const msg = el('ssc-save-msg');
     if (msg) { msg.textContent = '✓ Saved at ' + data.savedAt; msg.style.display = 'inline'; setTimeout(() => { msg.style.display='none'; }, 3000); }
   },
 
   load() {
-    const raw = localStorage.getItem('ssc_saved');
+    // Try new key first, fall back to legacy key
+    let raw = null;
+    try { raw = localStorage.getItem('ch_ssc_data') || localStorage.getItem('ssc_saved'); } catch(e) {}
     if (!raw) { alert('No saved data found. Please save first using the 💾 Save button.'); return; }
-    const data = JSON.parse(raw);
+    let data;
+    try { data = JSON.parse(raw); } catch(e) { alert('Saved data is corrupted.'); return; }
     const el = (id) => document.getElementById(id);
-    if (el('ssc-name'))   el('ssc-name').value   = data.info.name   || '';
-    if (el('ssc-class'))  el('ssc-class').value  = data.info.cls    || '';
-    if (el('ssc-exam'))   el('ssc-exam').value   = data.info.exam   || '';
-    if (el('ssc-roll'))   el('ssc-roll').value   = data.info.roll   || '';
-    if (el('ssc-school')) el('ssc-school').value = data.info.school || '';
-    if (el('ssc-year'))   el('ssc-year').value   = data.info.year   || '';
+    if (el('ssc-name'))   el('ssc-name').value   = data.info?.name   || '';
+    if (el('ssc-class'))  el('ssc-class').value  = data.info?.cls    || '';
+    if (el('ssc-exam'))   el('ssc-exam').value   = data.info?.exam   || '';
+    if (el('ssc-roll'))   el('ssc-roll').value   = data.info?.roll   || '';
+    if (el('ssc-school')) el('ssc-school').value = data.info?.school || '';
+    if (el('ssc-year'))   el('ssc-year').value   = data.info?.year   || '';
     if (el('ssc-tot-rank')) el('ssc-tot-rank').value = data.totalRank || '';
-    this.sscRows = data.rows;
+    if (data.rows && data.rows.length) this.sscRows = data.rows;
     this.renderRows();
     this.updateTotals();
-    // Restore student photo
-    if (data.studentPhoto) {
-      this.studentPhoto = data.studentPhoto;
-      this._renderStudentPic(data.studentPhoto);
-    }
+    // Restore student photo from separate key
+    const photo = localStorage.getItem('ch_ssc_photo') || data.studentPhoto || null;
+    if (photo) { this.studentPhoto = photo; this._renderStudentPic(photo); }
     const msg = el('ssc-save-msg');
     if (msg) { msg.textContent = '✓ Loaded (saved '+(data.savedAt||'—')+')'; msg.style.color='#fcd34d'; msg.style.display='inline'; setTimeout(()=>{ msg.style.display='none'; msg.style.color='#34d399'; },4000); }
   },
