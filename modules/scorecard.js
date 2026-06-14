@@ -821,7 +821,7 @@ export const scorecardModule = {
       const sc2 = this._barColor(sp);
       return `
         <div class="ssc-drill-subj-row">
-          <div class="ssc-drill-subj-rank">${s.rank ? '<div style='font-size:9px;color:var(--text-muted,#6b6656);letter-spacing:.06em;'>Rank</div><div style='font-size:14px;font-weight:700;color:var(--text,#e8e4d8);'>' + s.rank + '</div>' : '<div style='font-size:11px;color:var(--text-muted,#6b6656);'>—</div>'}</div>
+          <div class="ssc-drill-subj-rank">${s.rank ? `<div style="font-size:9px;color:var(--text-muted,#6b6656);letter-spacing:.06em;">Rank</div><div style="font-size:14px;font-weight:700;color:var(--text,#e8e4d8);">${s.rank}</div>` : `<div style="font-size:11px;color:var(--text-muted,#6b6656);">—</div>`}</div>
           <div class="ssc-drill-subj-name">${s.name}</div>
           <div class="ssc-drill-subj-score" style="color:${sc2};">${s.obt}/${s.max}</div>
         </div>`;
