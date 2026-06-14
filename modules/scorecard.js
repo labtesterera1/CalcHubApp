@@ -426,12 +426,37 @@ export const scorecardModule = {
 
       <!-- Import -->
       <div style="background:var(--surface,#14130f);border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:10px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8;border-left:3px solid #38bdf8;padding-left:8px;margin-bottom:10px;">📥 Import Data</div>
-        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin-bottom:12px;">Select a previously exported <code style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-size:11px;">.json</code> file. This will <strong style="color:#f87171;">merge</strong> imported records with existing data.</p>
-        <label style="display:inline-block;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.4);color:#38bdf8;border-radius:6px;padding:9px 20px;font-size:13px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8;border-left:3px solid #38bdf8;padding-left:8px;margin-bottom:12px;">📥 Import Data</div>
+
+        <!-- Import mode selector -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <label id="import-mode-merge-lbl" style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;background:rgba(52,211,153,.1);border:2px solid rgba(52,211,153,.4);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;">
+            <input type="radio" name="ssc-import-mode" value="merge" checked onchange="__ssc._onImportModeChange()" style="accent-color:#34d399;margin-top:2px;flex-shrink:0;">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#34d399;margin-bottom:3px;">⊕ Merge</div>
+              <div style="font-size:11px;color:var(--text-muted,#6b6656);line-height:1.4;">Adds imported records to existing data. No data is lost. Duplicate entries are skipped.</div>
+            </div>
+          </label>
+          <label id="import-mode-replace-lbl" style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,.03);border:2px solid var(--border,#2a2820);border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;">
+            <input type="radio" name="ssc-import-mode" value="replace" onchange="__ssc._onImportModeChange()" style="accent-color:#f87171;margin-top:2px;flex-shrink:0;">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#f87171;margin-bottom:3px;">⊘ Full Replace</div>
+              <div style="font-size:11px;color:var(--text-muted,#6b6656);line-height:1.4;">Wipes ALL existing data and replaces with import. Use to fully restore from backup.</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Warning shown for replace mode -->
+        <div id="ssc-replace-warning" style="display:none;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:11px;font-family:'JetBrains Mono',monospace;color:#fca5a5;line-height:1.5;">
+          ⚠ <strong>Full Replace will permanently delete</strong> all current student info, marks, history records, students roster and photo — then replace with the imported file. This cannot be undone.
+        </div>
+
+        <!-- File picker -->
+        <label style="display:inline-flex;align-items:center;gap:8px;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.4);color:#38bdf8;border-radius:6px;padding:9px 20px;font-size:13px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;">
           ⬆ Select Import File
           <input type="file" id="ssc-import-file" accept=".json" style="display:none;" onchange="__ssc.importData(this)">
         </label>
+
         <div id="ssc-import-status" style="margin-top:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#34d399;display:none;"></div>
       </div>
 
@@ -1479,10 +1504,37 @@ Object.assign(scorecardModule, {
     console.log('[SSC] Export done ✓');
   },
 
+  _onImportModeChange() {
+    const mode    = document.querySelector('input[name="ssc-import-mode"]:checked')?.value || 'merge';
+    const warning = document.getElementById('ssc-replace-warning');
+    const mergeLbl   = document.getElementById('import-mode-merge-lbl');
+    const replaceLbl = document.getElementById('import-mode-replace-lbl');
+
+    if (warning)    warning.style.display    = mode === 'replace' ? 'block' : 'none';
+    if (mergeLbl)   {
+      mergeLbl.style.background   = mode === 'merge'   ? 'rgba(52,211,153,.1)' : 'rgba(255,255,255,.03)';
+      mergeLbl.style.borderColor  = mode === 'merge'   ? 'rgba(52,211,153,.4)' : 'var(--border,#2a2820)';
+    }
+    if (replaceLbl) {
+      replaceLbl.style.background  = mode === 'replace' ? 'rgba(248,113,113,.1)' : 'rgba(255,255,255,.03)';
+      replaceLbl.style.borderColor = mode === 'replace' ? 'rgba(248,113,113,.4)' : 'var(--border,#2a2820)';
+    }
+  },
+
   importData(input) {
     const file = input.files[0];
     if (!file) return;
     const statusEl = document.getElementById('ssc-import-status');
+    const mode     = document.querySelector('input[name="ssc-import-mode"]:checked')?.value || 'merge';
+
+    // Confirm full replace
+    if (mode === 'replace') {
+      const replaceMsg = 'FULL REPLACE: Wipes ALL existing data (marks, history, students, photo) and replaces with the imported file. Cannot be undone. Continue?';
+      if (!confirm(replaceMsg)) {
+        input.value = '';
+        return;
+      }
+    }
 
     const reader = new FileReader();
     reader.onload = ev => {
@@ -1490,57 +1542,79 @@ Object.assign(scorecardModule, {
         const payload = JSON.parse(ev.target.result);
         if (payload.app !== 'CalcHubApp-ScoreCard') throw new Error('Not a CalcHub Score Card export file');
 
-        let imported = { current: 0, history: 0, students: 0, photo: false };
+        if (mode === 'replace') {
+          /* ── FULL REPLACE ── wipe everything then restore */
+          const keysToWipe = [
+            'calchub_ssc_v4', 'calchub_ssc_history', 'calchub_ssc_students',
+            'calchub_ssc_photo', 'calchub_ssc_presets', 'calchub_ssc_active_preset',
+            'ssc_saved', 'ch__ssc_data', 'ch__ssc_photo',
+          ];
+          keysToWipe.forEach(k => { try { localStorage.removeItem(k); } catch {} });
 
-        // Restore current session (merge — only if no existing name)
-        if (payload.current) {
-          const existing = localStorage.getItem('calchub_ssc_v4');
-          const existParsed = existing ? JSON.parse(existing) : null;
-          if (!existParsed?.info?.name) {
-            localStorage.setItem('calchub_ssc_v4', JSON.stringify(payload.current));
-            imported.current = 1;
+          // Restore everything from payload
+          if (payload.current)  try { localStorage.setItem('calchub_ssc_v4', JSON.stringify(payload.current)); } catch {}
+          if (payload.history)  try { localStorage.setItem('calchub_ssc_history', JSON.stringify(payload.history)); } catch {}
+          if (payload.students) try { localStorage.setItem('calchub_ssc_students', JSON.stringify(payload.students)); } catch {}
+          if (payload.photo)    try { localStorage.setItem('calchub_ssc_photo', payload.photo); } catch {}
+
+          const msg = `✓ Full Replace done — ${payload.history?.length||0} history records, ${payload.students?.length||0} students, current session restored. Reloading…`;
+          if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#34d399'; statusEl.style.display = 'block'; }
+          console.log('[SSC]', msg);
+          setTimeout(() => window.location.reload(), 1500);
+
+        } else {
+          /* ── MERGE ── add imported records to existing */
+          let imported = { current: 0, history: 0, students: 0, photo: false };
+
+          // Restore current session only if no existing name
+          if (payload.current) {
+            const existing    = localStorage.getItem('calchub_ssc_v4');
+            const existParsed = existing ? JSON.parse(existing) : null;
+            if (!existParsed?.info?.name) {
+              localStorage.setItem('calchub_ssc_v4', JSON.stringify(payload.current));
+              imported.current = 1;
+            }
           }
+
+          // Merge history (skip duplicates by id)
+          if (payload.history?.length) {
+            const existing = this._readHistory();
+            const existIds = new Set(existing.map(r => r.id));
+            const newRecs  = payload.history.filter(r => !existIds.has(r.id));
+            const merged   = [...existing, ...newRecs].sort((a,b) => b.id - a.id);
+            localStorage.setItem('calchub_ssc_history', JSON.stringify(merged));
+            imported.history = newRecs.length;
+          }
+
+          // Merge students (append missing)
+          if (payload.students?.length) {
+            const existing = this._readStudents();
+            const combined = [...existing];
+            payload.students.forEach(s => {
+              if (!combined.find(e => e.id === s.id)) combined.push(s);
+            });
+            this._writeStudents(combined.slice(0,10));
+            imported.students = payload.students.length;
+          }
+
+          // Restore photo only if none exists
+          if (payload.photo && !localStorage.getItem('calchub_ssc_photo')) {
+            try { localStorage.setItem('calchub_ssc_photo', payload.photo); imported.photo = true; } catch {}
+          }
+
+          const msg = `✓ Merge done — ${imported.history} new history records, ${imported.students} students${imported.current?' + current session':''} imported.`;
+          if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#34d399'; statusEl.style.display = 'block'; }
+          console.log('[SSC]', msg);
+
+          if (imported.current) setTimeout(() => window.location.reload(), 1500);
         }
-
-        // Merge history records (no duplicates by id)
-        if (payload.history?.length) {
-          const existing = this._readHistory();
-          const existIds = new Set(existing.map(r => r.id));
-          const newRecs  = payload.history.filter(r => !existIds.has(r.id));
-          const merged   = [...existing, ...newRecs].sort((a,b) => b.id - a.id);
-          localStorage.setItem('calchub_ssc_history', JSON.stringify(merged));
-          imported.history = newRecs.length;
-        }
-
-        // Merge students (append, keep existing)
-        if (payload.students?.length) {
-          const existing = this._readStudents();
-          const combined = [...existing];
-          payload.students.forEach(s => {
-            if (!combined.find(e => e.id === s.id)) combined.push(s);
-          });
-          this._writeStudents(combined.slice(0,10));
-          imported.students = payload.students.length;
-        }
-
-        // Restore photo if none exists
-        if (payload.photo && !localStorage.getItem('calchub_ssc_photo')) {
-          try { localStorage.setItem('calchub_ssc_photo', payload.photo); imported.photo = true; } catch {}
-        }
-
-        const msg = `✓ Import done — ${imported.history} history records, ${imported.students} students${imported.current?' + current session':''} merged.`;
-        if (statusEl) { statusEl.textContent = msg; statusEl.style.display = 'block'; }
-        console.log('[SSC]', msg);
-
-        // Reload current session if imported
-        if (imported.current) { this._commitSave(); window.location.reload(); }
 
       } catch(e) {
         const msg = '✗ Import failed: ' + e.message;
         if (statusEl) { statusEl.textContent = msg; statusEl.style.display = 'block'; statusEl.style.color = '#f87171'; }
         console.error('[SSC] Import error:', e);
       }
-      input.value = ''; // reset input
+      input.value = '';
     };
     reader.readAsText(file);
   },
