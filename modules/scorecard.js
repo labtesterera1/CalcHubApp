@@ -559,13 +559,18 @@ export const scorecardModule = {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-          const dataUrl = ev.target.result; // use full size — no canvas needed
+          const dataUrl = ev.target.result;
+          if (!dataUrl || dataUrl === 'data:') {
+            console.warn('[SSC] FileReader returned empty result');
+            return;
+          }
           this.studentPhoto = dataUrl;
-          photoWrite(dataUrl);
+          const saved = photoWrite(dataUrl);
+          console.log('[SSC] Photo read ok, size:', Math.round(dataUrl.length/1024)+'KB, saved:', saved);
           this._renderPic(dataUrl);
         };
+        reader.onerror = (e) => console.error('[SSC] FileReader error:', e);
         reader.readAsDataURL(file);
-        // NOTE: do NOT reset e.target.value here — it cancels the FileReader on Android
       });
     }
   },
@@ -1875,10 +1880,11 @@ Object.assign(scorecardModule, {
           if (payload.students) try { localStorage.setItem('calchub_ssc_students', JSON.stringify(payload.students)); } catch {}
           if (payload.photo)    try { localStorage.setItem('calchub_ssc_photo', payload.photo); } catch {}
 
-          const msg = `✓ Full Replace done — ${payload.history?.length||0} history records, ${payload.students?.length||0} students, current session restored. Reloading…`;
+          const msg = `✓ Full Replace done — ${payload.history?.length||0} history records, ${payload.students?.length||0} students restored.`;
           if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#34d399'; statusEl.style.display = 'block'; }
           console.log('[SSC]', msg);
-          setTimeout(() => window.location.reload(), 1500);
+          // Re-init module without page reload
+          setTimeout(() => { this.init(); this.switchSub('scorecard'); }, 400);
 
         } else {
           /* ── MERGE ── add imported records to existing */
@@ -1917,14 +1923,21 @@ Object.assign(scorecardModule, {
 
           // Restore photo only if none exists
           if (payload.photo && !localStorage.getItem('calchub_ssc_photo')) {
-            try { localStorage.setItem('calchub_ssc_photo', payload.photo); imported.photo = true; } catch {}
+            try {
+              localStorage.setItem('calchub_ssc_photo', payload.photo);
+              imported.photo = true;
+            } catch(qe) {
+              console.warn('[SSC] Photo too large for import storage:', qe.name);
+              // Skip photo if quota exceeded — rest of data still imported
+            }
           }
 
           const msg = `✓ Merge done — ${imported.history} new history records, ${imported.students} students${imported.current?' + current session':''} imported.`;
           if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#34d399'; statusEl.style.display = 'block'; }
           console.log('[SSC]', msg);
 
-          if (imported.current) setTimeout(() => window.location.reload(), 1500);
+          // Re-init to show imported data without page reload
+          if (imported.current) setTimeout(() => { this.init(); this.switchSub('scorecard'); }, 400);
         }
 
       } catch(e) {
