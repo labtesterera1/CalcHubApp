@@ -393,8 +393,12 @@ export const scorecardModule = {
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
         <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted,#6b6656);">
           Subjects: <span id="stu-subject-names" style="color:#38bdf8;">—</span>
+          &nbsp;·&nbsp; <span id="stu-roster-count" style="color:var(--text-muted,#6b6656);">0 students</span>
         </div>
-        <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
+          <button onclick="__ssc.resetRoster()" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#f87171;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;" title="Clear student roster and start fresh">🗑 Reset Roster</button>
+        </div>
       </div>
 
       <div id="stu-scroll-hint" style="display:none;text-align:right;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-bottom:4px;">← swipe to scroll →</div>
@@ -1300,7 +1304,14 @@ Object.assign(scorecardModule, {
   _readStudents() {
     try {
       const raw = localStorage.getItem(STUDENTS_KEY);
-      return raw ? JSON.parse(raw) : [];
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      // Migrate: old format stored marks[] inside each student — strip to roster-only
+      return parsed.map(s => ({
+        id:   s.id   || '',
+        name: s.name || '',
+        roll: s.roll || '',
+      })).filter(s => s.id); // remove any corrupt entries
     } catch { return []; }
   },
 
@@ -1429,13 +1440,13 @@ Object.assign(scorecardModule, {
   /* ── Add / Delete students (roster — fixed across weeks) ── */
   addStudent() {
     const list = this._readStudents();
-    if (list.length >= 10) { alert('Maximum 10 students reached.'); return; }
+    if (list.length >= 10) { alert('Maximum 10 students reached (Student01–Student10).'); return; }
     const num   = list.length + 1;
     const label = 'Student' + String(num).padStart(2,'0');
     list.push({ id: label, name: '', roll: '' });
     this._writeStudents(list);
 
-    // Also add this student to every existing weekly session
+    // Add to every existing weekly session
     const sessions = this._readWeekly();
     sessions.forEach(sess => {
       if (!sess.students.find(s => s.id === label)) {
@@ -1450,10 +1461,17 @@ Object.assign(scorecardModule, {
     if (!confirm('Remove ' + stuId + ' from all weeks? This cannot be undone.')) return;
     const list = this._readStudents().filter(s => s.id !== stuId);
     this._writeStudents(list);
-    // Remove from all weekly sessions too
     const sessions = this._readWeekly();
     sessions.forEach(sess => { sess.students = sess.students.filter(s => s.id !== stuId); });
     this._writeWeekly(sessions);
+    this.renderStudents();
+  },
+
+  resetRoster() {
+    if (!confirm('Clear ALL students from the roster? Weekly mark data will also be cleared. This cannot be undone.')) return;
+    try { localStorage.removeItem(STUDENTS_KEY); } catch {}
+    try { localStorage.removeItem(WEEKLY_KEY); } catch {}
+    this._activeWeekIdx = 0;
     this.renderStudents();
   },
 
@@ -1503,6 +1521,8 @@ Object.assign(scorecardModule, {
     // ── Subject names ──
     const snEl = document.getElementById('stu-subject-names');
     if (snEl) snEl.textContent = subjects.map(s=>s.name).join(' · ') || '—';
+    const rcEl = document.getElementById('stu-roster-count');
+    if (rcEl) rcEl.textContent = students.length + ' student' + (students.length !== 1 ? 's' : '') + ' in roster';
 
     // ── Preset inputs ──
     this._renderPresetInputs(maxMarks);
