@@ -10,6 +10,7 @@ const PHOTO_KEY   = 'calchub_ssc_photo';   // student photo
 const HISTORY_KEY  = 'calchub_ssc_history';  // weekly test history array
 const STUDENTS_KEY = 'calchub_ssc_students'; // other students roster
 const PRESETS_KEY  = 'calchub_ssc_presets';  // max mark presets (CALC1, CALC2...)
+const WEEKLY_KEY   = 'calchub_ssc_weekly';   // weekly sessions [{date,presetId,students:[{id,marks[]}]}]
 
 function sscWrite(data) {
   try {
@@ -351,60 +352,67 @@ export const scorecardModule = {
     <!-- ══ OTHER STUDENTS ══ -->
     <div id="subpanel-students" style="display:none;">
 
-      <!-- Max Mark Presets -->
-      <div style="background:var(--surface,#14130f);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:1rem 1.1rem;margin-bottom:12px;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#34d399;border-left:3px solid #34d399;padding-left:8px;margin-bottom:10px;">
-          📐 Max Mark Presets — select exam type to set correct max per subject
+      <!-- ══ WEEK SELECTOR BAR ══ -->
+      <div style="background:var(--surface,#14130f);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#34d399;margin-bottom:8px;">📅 Weekly Session</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <!-- Prev week -->
+          <button onclick="__ssc.weekNav(-1)" style="background:rgba(255,255,255,.05);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:13px;padding:6px 10px;cursor:pointer;" title="Previous week">←</button>
+          <!-- Week picker dropdown -->
+          <select id="stu-week-select" onchange="__ssc.weekGoto(this.value)"
+            style="flex:1;min-width:160px;background:var(--bg,#080807);border:1px solid rgba(52,211,153,.35);border-radius:6px;color:#34d399;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;padding:6px 10px;outline:none;cursor:pointer;">
+          </select>
+          <!-- Next week -->
+          <button onclick="__ssc.weekNav(+1)" style="background:rgba(255,255,255,.05);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:13px;padding:6px 10px;cursor:pointer;" title="Next week">→</button>
+          <!-- Add new week -->
+          <input type="date" id="stu-new-week-date" style="background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 9px;outline:none;color-scheme:dark;cursor:pointer;">
+          <button onclick="__ssc.weekAdd()" style="background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.4);color:#34d399;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;white-space:nowrap;">+ New Week</button>
+          <button onclick="__ssc.weekDelete()" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#f87171;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;">🗑 Delete Week</button>
         </div>
-
-        <!-- Preset selector pills -->
-        <div id="stu-preset-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
-
-        <!-- Custom max mark inputs (shown per subject) -->
-        <div id="stu-preset-inputs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;"></div>
-
-        <!-- Add new preset -->
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;">
-          <input type="text" id="stu-new-preset-name" placeholder="Preset name (e.g. CALC 3)"
-            style="background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;flex:1;min-width:130px;max-width:200px;">
-          <button onclick="__ssc.savePreset()"
-            style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;">
-            + Save Preset
-          </button>
-          <span style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">Enter max marks above then save as preset</span>
-        </div>
-      </div>
-
-      <!-- Top action bar -->
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">Manage up to 10 students — Student01 to Student10.</p>
-        <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
-      </div>
-
-      <!-- Subject header -->
-      <div id="stu-subject-header" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#34d399;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span>📚 Subjects:</span>
-        <span id="stu-subject-names" style="color:var(--text-muted,#6b6656);">—</span>
-        <span style="color:var(--text-muted,#6b6656);">|</span>
-        <span>Max:</span>
-        <span id="stu-max-display" style="color:#f59e0b;">—</span>
-        <span style="color:var(--text-muted,#6b6656);">| Active preset:</span>
-        <span id="stu-active-preset-name" style="color:#34d399;font-weight:700;">None</span>
-      </div>
-
-      <!-- Students table -->
-      <div style="position:relative;">
-        <!-- Scroll hint on mobile -->
-        <div id="stu-scroll-hint" style="display:none;text-align:right;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-bottom:4px;">← swipe to scroll →</div>
-        <div style="border:1px solid var(--border,#2a2820);border-radius:10px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;max-width:100%;">
-          <table class="ref-table" id="stu-table" style="min-width:700px;table-layout:fixed;">
-            <thead id="stu-thead"></thead>
-            <tbody id="stu-tbody"></tbody>
-          </table>
+        <!-- Week info strip -->
+        <div style="margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted,#6b6656);">
+          <span>Preset: <span id="stu-week-preset-name" style="color:#f59e0b;">—</span></span>
+          <span>Max per subject: <span id="stu-week-max-display" style="color:#f59e0b;">—</span></span>
+          <span id="stu-week-count" style="margin-left:auto;color:var(--text-muted,#6b6656);"></span>
         </div>
       </div>
-      <div style="margin-top:8px;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
-        MM = Marks obtained per subject · TM = Total Marks · TP = Total Percentage
+
+      <!-- ══ PRESET SELECTOR (per week) ══ -->
+      <div style="background:var(--surface,#14130f);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#f59e0b;border-left:3px solid #f59e0b;padding-left:8px;margin-bottom:8px;">📐 This Week's Max Mark Preset</div>
+        <div id="stu-preset-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <div id="stu-preset-inputs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="stu-new-preset-name" placeholder="New preset name (e.g. CALC 3)"
+            style="background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;flex:1;min-width:140px;max-width:200px;">
+          <button onclick="__ssc.savePreset()" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#f59e0b;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;">+ Save Preset</button>
+        </div>
+      </div>
+
+      <!-- ══ STUDENTS TABLE ══ -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted,#6b6656);">
+          Subjects: <span id="stu-subject-names" style="color:#38bdf8;">—</span>
+        </div>
+        <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
+      </div>
+
+      <div id="stu-scroll-hint" style="display:none;text-align:right;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-bottom:4px;">← swipe to scroll →</div>
+      <div style="border:1px solid var(--border,#2a2820);border-radius:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <table class="ref-table" id="stu-table" style="min-width:700px;">
+          <thead id="stu-thead"></thead>
+          <tbody id="stu-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
+        MM = Marks for this week · TM = Total Marks · TP = Total %
+      </div>
+
+      <!-- Student progress modal -->
+      <div id="stu-progress-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="__ssc.closeProgress(event)">
+        <div style="background:#14130f;border:1px solid #2a2820;border-radius:16px;max-width:480px;margin:40px auto;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
+          <div id="stu-progress-inner"></div>
+        </div>
       </div>
     </div>
 
@@ -1273,6 +1281,22 @@ Object.assign(scorecardModule, {
   },
 
   /* ── Student storage helpers ── */
+  /* ═══════════════════════════════════════
+     WEEKLY SESSION STORAGE
+     ═══════════════════════════════════════ */
+
+  _readWeekly() {
+    try {
+      const raw = localStorage.getItem(WEEKLY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  },
+
+  _writeWeekly(sessions) {
+    try { localStorage.setItem(WEEKLY_KEY, JSON.stringify(sessions)); }
+    catch(e) { console.warn('[SSC] Weekly write failed:', e.name); }
+  },
+
   _readStudents() {
     try {
       const raw = localStorage.getItem(STUDENTS_KEY);
@@ -1285,171 +1309,432 @@ Object.assign(scorecardModule, {
     catch(e) { console.warn('[SSC] Students write failed:', e.name); }
   },
 
-  addStudent() {
-    const list = this._readStudents();
-    if (list.length >= 10) { alert('Maximum 10 students reached.'); return; }
-    const id    = list.length + 1;
-    const label = 'Student' + String(id).padStart(2,'0');
-    const preset = this._getActivePreset();
-    list.push({
-      id: label,
-      name: '',
-      roll: '',
-      marks: this.sscRows.map((s, i) => ({
-        subj: s.name,
-        max:  (preset?.maxMarks?.[i]) || s.max,
-        obt:  0
-      })),
-    });
-    this._writeStudents(list);
+  /* Active week index (in-memory only, resets on reload — that's fine) */
+  _activeWeekIdx: 0,
+
+  _getWeekMarks(weekIdx, stuId) {
+    const sessions = this._readWeekly();
+    const session  = sessions[weekIdx];
+    if (!session) return [];
+    const stu = session.students.find(s => s.id === stuId);
+    return stu ? stu.marks : [];
+  },
+
+  /* ── Week navigation ── */
+  weekNav(dir) {
+    const sessions = this._readWeekly();
+    if (!sessions.length) return;
+    this._activeWeekIdx = Math.max(0, Math.min(sessions.length - 1, this._activeWeekIdx + dir));
     this.renderStudents();
   },
 
-  deleteStudent(idx) {
-    if (!confirm('Delete this student?')) return;
-    const list = this._readStudents();
-    list.splice(idx, 1);
-    this._writeStudents(list);
+  weekGoto(idx) {
+    this._activeWeekIdx = parseInt(idx) || 0;
     this.renderStudents();
   },
 
-  renderStudents() {
-    const subjects = this.sscRows;
+  weekAdd() {
+    const dateEl = document.getElementById('stu-new-week-date');
+    const date   = dateEl?.value || new Date().toISOString().slice(0,10);
+    const sessions = this._readWeekly();
 
-    // Show swipe hint on narrow screens
-    const hint = document.getElementById('stu-scroll-hint');
-    if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
-
-    const thead = document.getElementById('stu-thead');
-    const tbody = document.getElementById('stu-tbody');
-    if (!thead || !tbody) return;
-
-    let list = this._readStudents();
-
-    // Get active preset max marks
-    const activePreset = this._getActivePreset();
-    const maxMarks = subjects.map((s, i) =>
-      (activePreset && activePreset.maxMarks[i] != null)
-        ? parseFloat(activePreset.maxMarks[i]) || s.max
-        : s.max
-    );
-    const totalMaxAll = maxMarks.reduce((a,v) => a+v, 0);
-
-    // Update subject + max display
-    const snEl = document.getElementById('stu-subject-names');
-    if (snEl) snEl.textContent = subjects.map(s => s.name).join(' · ') || '—';
-    const mdEl = document.getElementById('stu-max-display');
-    if (mdEl) mdEl.textContent = maxMarks.join(' / ') + ' (Total: ' + totalMaxAll + ')';
-    const apEl = document.getElementById('stu-active-preset-name');
-    if (apEl) apEl.textContent = activePreset ? activePreset.name : 'None (using Score Card max)';
-
-    // Render preset pills
-    this._renderPresetPills();
-
-    // Render preset max inputs
-    this._renderPresetInputs(maxMarks);
-
-    // Sync subject columns — use preset max
-    list = list.map(st => {
-      const existingMarks = st.marks || [];
-      const synced = subjects.map((s, i) => {
-        const found = existingMarks.find(m => m.subj === s.name);
-        return found ? { ...found, subj: s.name, max: maxMarks[i] } : { subj: s.name, max: maxMarks[i], obt: 0 };
-      });
-      return { ...st, marks: synced };
-    });
-
-    // Build header with max marks shown
-    thead.innerHTML = `<tr>
-      <th style="min-width:90px;text-align:left;padding-left:10px;">Student ID</th>
-      <th style="min-width:120px;">Name</th>
-      <th style="min-width:80px;">Roll No</th>
-      ${subjects.map((s,i) => `<th style="min-width:72px;color:#38bdf8;" title="${s.name}">
-        MM${i+1}<br>
-        <span style="font-size:9px;color:var(--text-muted,#6b6656);">${s.name.substring(0,6)}</span><br>
-        <span style="font-size:10px;color:#f59e0b;">/${maxMarks[i]}</span>
-      </th>`).join('')}
-      <th style="min-width:70px;color:#34d399;">TM<br><span style="font-size:9px;color:#f59e0b;">/${totalMaxAll}</span></th>
-      <th style="min-width:70px;color:#fcd34d;">TP%</th>
-      <th style="min-width:40px;"></th>
-    </tr>`;
-
-    if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="${5 + subjects.length}" style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:12px;">
-        No students yet — tap <strong style="color:#34d399;">+ Add Student</strong> above
-      </td></tr>`;
+    // Check duplicate date
+    const dupIdx = sessions.findIndex(s => s.date === date);
+    if (dupIdx >= 0) {
+      if (!confirm('A session for ' + this._fmtDate(date) + ' already exists. Switch to it?')) return;
+      this._activeWeekIdx = dupIdx;
+      this.renderStudents();
       return;
     }
 
-    tbody.innerHTML = list.map((st, idx) => {
-      const totObt = st.marks.reduce((a,m) => a + (parseFloat(m.obt)||0), 0);
-      const totMax = st.marks.reduce((a,m) => a + (parseFloat(m.max)||0), 0);
-      const pct    = totMax ? ((totObt/totMax)*100).toFixed(1) : '—';
-      const pctClr = totMax ? this._barColor((totObt/totMax)*100) : 'var(--text-muted,#6b6656)';
+    const students = this._readStudents();
+    const preset   = this._getActivePreset();
+    const newSession = {
+      id:        Date.now(),
+      date,
+      presetId:  preset?.id || '',
+      students:  students.map(st => ({
+        id:    st.id,
+        marks: this.sscRows.map((s,i) => ({ subj: s.name, obt: 0 }))
+      }))
+    };
 
-      const markCells = st.marks.map((m,mi) =>
-        `<td style="text-align:center;padding:4px;">
-          <input type="number" value="${m.obt}" min="0" max="${m.max}"
-            data-stu="${idx}" data-mark="${mi}"
-            onchange="__ssc._onStudentMarkChange(${idx},${mi},this.value)"
-            style="width:52px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:3px 5px;text-align:center;outline:none;-moz-appearance:textfield;">
-        </td>`
-      ).join('');
-
-      return `<tr data-stu-idx="${idx}">
-        <td style="padding:6px 10px;">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#34d399;">${st.id}</div>
-        </td>
-        <td style="padding:4px;">
-          <input type="text" value="${st.name||''}" placeholder="Student Name"
-            data-stu="${idx}" data-field="name"
-            onchange="__ssc._onStudentInfoChange(${idx},'name',this.value)"
-            style="width:110px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
-        </td>
-        <td style="padding:4px;">
-          <input type="text" value="${st.roll||''}" placeholder="Roll No"
-            data-stu="${idx}" data-field="roll"
-            onchange="__ssc._onStudentInfoChange(${idx},'roll',this.value)"
-            style="width:70px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
-        </td>
-        ${markCells}
-        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#34d399;">${totObt}</td>
-        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${pctClr};">${pct}${totMax?'%':''}</td>
-        <td style="text-align:center;">
-          <button onclick="__ssc.deleteStudent(${idx})" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:13px;padding:2px 5px;" title="Delete student">✕</button>
-        </td>
-      </tr>`;
-    }).join('');
+    sessions.unshift(newSession); // newest first
+    this._writeWeekly(sessions);
+    this._activeWeekIdx = 0;
+    this.renderStudents();
   },
 
-  _onStudentMarkChange(stuIdx, markIdx, val) {
-    const list = this._readStudents();
-    if (!list[stuIdx]) return;
-    list[stuIdx].marks[markIdx].obt = parseFloat(val) || 0;
-    this._writeStudents(list);
-    // Refresh totals row only
-    const rows = document.querySelectorAll('#stu-tbody tr');
-    if (rows[stuIdx]) {
-      const st   = list[stuIdx];
-      const totObt = st.marks.reduce((a,m) => a+(parseFloat(m.obt)||0), 0);
-      const totMax = st.marks.reduce((a,m) => a+(parseFloat(m.max)||0), 0);
-      const pct    = totMax ? ((totObt/totMax)*100).toFixed(1) : '—';
-      const pctClr = totMax ? this._barColor((totObt/totMax)*100) : 'var(--text-muted,#6b6656)';
-      const cells  = rows[stuIdx].querySelectorAll('td');
-      const len    = cells.length;
+  weekDelete() {
+    const sessions = this._readWeekly();
+    if (!sessions.length) return;
+    const w = sessions[this._activeWeekIdx];
+    if (!confirm('Delete week ' + this._fmtDate(w.date) + '? This cannot be undone.')) return;
+    sessions.splice(this._activeWeekIdx, 1);
+    this._writeWeekly(sessions);
+    this._activeWeekIdx = Math.max(0, this._activeWeekIdx - 1);
+    this.renderStudents();
+  },
+
+  /* ── Update a student's marks for the active week ── */
+  _onWeekMarkChange(stuId, markIdx, val) {
+    const sessions = this._readWeekly();
+    const session  = sessions[this._activeWeekIdx];
+    if (!session) return;
+    let stu = session.students.find(s => s.id === stuId);
+    if (!stu) {
+      stu = { id: stuId, marks: this.sscRows.map(s => ({ subj: s.name, obt: 0 })) };
+      session.students.push(stu);
+    }
+    if (!stu.marks[markIdx]) stu.marks[markIdx] = { subj: this.sscRows[markIdx]?.name || '', obt: 0 };
+    stu.marks[markIdx].obt = parseFloat(val) || 0;
+    this._writeWeekly(sessions);
+
+    // Live-update TM + TP% cells in the row
+    const maxMarks  = this._activeWeekMaxMarks();
+    const totObt    = stu.marks.reduce((a,m,i) => a + (parseFloat(m.obt)||0), 0);
+    const totMax    = maxMarks.reduce((a,v) => a+v, 0);
+    const pct       = totMax ? ((totObt/totMax)*100).toFixed(1) : '—';
+    const pctClr    = totMax ? this._barColor((totObt/totMax)*100) : 'var(--text-muted,#6b6656)';
+    const row       = document.querySelector(`tr[data-stu-id="${stuId}"]`);
+    if (row) {
+      const cells = row.querySelectorAll('td');
+      const len   = cells.length;
       cells[len-3].textContent = totObt;
       cells[len-3].style.color = '#34d399';
-      cells[len-2].textContent = totMax ? pct+'%' : '—';
+      cells[len-2].textContent = totMax ? pct + '%' : '—';
       cells[len-2].style.color = pctClr;
     }
   },
 
+  _activeWeekMaxMarks() {
+    const sessions = this._readWeekly();
+    const session  = sessions[this._activeWeekIdx];
+    const preset   = session
+      ? (this._readPresets().find(p => p.id === session.presetId) || this._getActivePreset())
+      : this._getActivePreset();
+    return this.sscRows.map((s,i) =>
+      (preset?.maxMarks?.[i] != null) ? parseFloat(preset.maxMarks[i])||s.max : s.max
+    );
+  },
+
+  /* ── Update student info (name/roll — shared across all weeks) ── */
   _onStudentInfoChange(stuIdx, field, val) {
     const list = this._readStudents();
     if (!list[stuIdx]) return;
     list[stuIdx][field] = val;
     this._writeStudents(list);
   },
+
+  /* ── Add / Delete students (roster — fixed across weeks) ── */
+  addStudent() {
+    const list = this._readStudents();
+    if (list.length >= 10) { alert('Maximum 10 students reached.'); return; }
+    const num   = list.length + 1;
+    const label = 'Student' + String(num).padStart(2,'0');
+    list.push({ id: label, name: '', roll: '' });
+    this._writeStudents(list);
+
+    // Also add this student to every existing weekly session
+    const sessions = this._readWeekly();
+    sessions.forEach(sess => {
+      if (!sess.students.find(s => s.id === label)) {
+        sess.students.push({ id: label, marks: this.sscRows.map(s => ({ subj: s.name, obt: 0 })) });
+      }
+    });
+    this._writeWeekly(sessions);
+    this.renderStudents();
+  },
+
+  deleteStudent(stuId) {
+    if (!confirm('Remove ' + stuId + ' from all weeks? This cannot be undone.')) return;
+    const list = this._readStudents().filter(s => s.id !== stuId);
+    this._writeStudents(list);
+    // Remove from all weekly sessions too
+    const sessions = this._readWeekly();
+    sessions.forEach(sess => { sess.students = sess.students.filter(s => s.id !== stuId); });
+    this._writeWeekly(sessions);
+    this.renderStudents();
+  },
+
+  /* ═══════════════════════════════════════
+     RENDER STUDENTS (weekly-aware)
+     ═══════════════════════════════════════ */
+  renderStudents() {
+    const subjects = this.sscRows;
+    const students = this._readStudents();
+    const sessions = this._readWeekly();
+
+    // Clamp active index
+    if (sessions.length) this._activeWeekIdx = Math.max(0, Math.min(sessions.length-1, this._activeWeekIdx));
+
+    const session    = sessions[this._activeWeekIdx] || null;
+    const maxMarks   = this._activeWeekMaxMarks();
+    const totalMaxAll = maxMarks.reduce((a,v) => a+v, 0);
+
+    // Find preset for this week
+    const weekPreset = session
+      ? (this._readPresets().find(p => p.id === session.presetId) || null)
+      : this._getActivePreset();
+
+    // ── Week selector dropdown ──
+    const weekSel = document.getElementById('stu-week-select');
+    if (weekSel) {
+      if (!sessions.length) {
+        weekSel.innerHTML = '<option value="">No weeks yet — add one above</option>';
+      } else {
+        weekSel.innerHTML = sessions.map((s,i) =>
+          `<option value="${i}" ${i===this._activeWeekIdx?'selected':''}>${this._fmtDate(s.date)} — ${this._weekPresetLabel(s)}</option>`
+        ).join('');
+      }
+    }
+
+    // ── Week info strip ──
+    const wpn = document.getElementById('stu-week-preset-name');
+    const wmd = document.getElementById('stu-week-max-display');
+    const wc  = document.getElementById('stu-week-count');
+    if (wpn) wpn.textContent = weekPreset ? weekPreset.name : 'Score Card max';
+    if (wmd) wmd.textContent = maxMarks.join(' / ') + '  (Total: ' + totalMaxAll + ')';
+    if (wc)  wc.textContent  = sessions.length + ' week(s) saved';
+
+    // ── Preset pills (week-specific) ──
+    this._renderPresetPills(session);
+
+    // ── Subject names ──
+    const snEl = document.getElementById('stu-subject-names');
+    if (snEl) snEl.textContent = subjects.map(s=>s.name).join(' · ') || '—';
+
+    // ── Preset inputs ──
+    this._renderPresetInputs(maxMarks);
+
+    // ── Swipe hint ──
+    const hint = document.getElementById('stu-scroll-hint');
+    if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
+
+    // ── Set default new-week date ──
+    const nwd = document.getElementById('stu-new-week-date');
+    if (nwd && !nwd.value) nwd.value = new Date().toISOString().slice(0,10);
+
+    const thead = document.getElementById('stu-thead');
+    const tbody = document.getElementById('stu-tbody');
+    if (!thead || !tbody) return;
+
+    // ── Header ──
+    thead.innerHTML = `<tr>
+      <th style="min-width:90px;text-align:left;padding-left:10px;">Student ID</th>
+      <th style="min-width:120px;">Name</th>
+      <th style="min-width:80px;">Roll No</th>
+      ${subjects.map((s,i) => `<th style="min-width:72px;color:#38bdf8;">
+        MM${i+1}<br>
+        <span style="font-size:9px;color:var(--text-muted,#6b6656);">${s.name.substring(0,6)}</span><br>
+        <span style="font-size:10px;color:#f59e0b;">/${maxMarks[i]}</span>
+      </th>`).join('')}
+      <th style="min-width:65px;color:#34d399;">TM<br><span style="font-size:9px;color:#f59e0b;">/${totalMaxAll}</span></th>
+      <th style="min-width:65px;color:#fcd34d;">TP%</th>
+      <th style="min-width:36px;" title="Week progress">📈</th>
+      <th style="min-width:30px;"></th>
+    </tr>`;
+
+    if (!students.length) {
+      tbody.innerHTML = `<tr><td colspan="${6+subjects.length}" style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:12px;">
+        No students yet — tap <strong style="color:#34d399;">+ Add Student</strong> above
+      </td></tr>`;
+      return;
+    }
+
+    if (!session) {
+      tbody.innerHTML = `<tr><td colspan="${6+subjects.length}" style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:12px;">
+        No week selected — tap <strong style="color:#34d399;">+ New Week</strong> to add the first week
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = students.map((st, idx) => {
+      const weekStu  = session.students.find(s => s.id === st.id);
+      const marks    = weekStu?.marks || subjects.map(s => ({ subj:s.name, obt:0 }));
+      const totObt   = marks.reduce((a,m) => a+(parseFloat(m.obt)||0), 0);
+      const pct      = totalMaxAll ? ((totObt/totalMaxAll)*100).toFixed(1) : '—';
+      const pctClr   = totalMaxAll ? this._barColor((totObt/totalMaxAll)*100) : 'var(--text-muted,#6b6656)';
+
+      const markCells = subjects.map((s,mi) =>
+        `<td style="text-align:center;padding:4px;">
+          <input type="number" value="${parseFloat(marks[mi]?.obt)||0}" min="0" max="${maxMarks[mi]}"
+            data-stu-id="${st.id}" data-mark="${mi}"
+            onchange="__ssc._onWeekMarkChange('${st.id}',${mi},this.value)"
+            style="width:52px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:3px 5px;text-align:center;outline:none;-moz-appearance:textfield;">
+        </td>`
+      ).join('');
+
+      return `<tr data-stu-id="${st.id}">
+        <td style="padding:6px 10px;"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#34d399;">${st.id}</div></td>
+        <td style="padding:4px;">
+          <input type="text" value="${st.name||''}" placeholder="Name" data-stu="${idx}" data-field="name"
+            onchange="__ssc._onStudentInfoChange(${idx},'name',this.value)"
+            style="width:100px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
+        </td>
+        <td style="padding:4px;">
+          <input type="text" value="${st.roll||''}" placeholder="Roll" data-stu="${idx}" data-field="roll"
+            onchange="__ssc._onStudentInfoChange(${idx},'roll',this.value)"
+            style="width:62px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
+        </td>
+        ${markCells}
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#34d399;">${totObt}</td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${pctClr};">${totalMaxAll ? pct+'%' : '—'}</td>
+        <td style="text-align:center;">
+          <button onclick="__ssc.showProgress('${st.id}')" style="background:none;border:none;color:#38bdf8;cursor:pointer;font-size:14px;padding:2px 4px;" title="Week-by-week progress">📈</button>
+        </td>
+        <td style="text-align:center;">
+          <button onclick="__ssc.deleteStudent('${st.id}')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:13px;padding:2px 4px;" title="Remove student">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  },
+
+  _weekPresetLabel(session) {
+    if (!session?.presetId) return 'Score Card max';
+    const p = this._readPresets().find(p => p.id === session.presetId);
+    return p ? p.name : 'Custom';
+  },
+
+  /* ── Preset pills — week-aware (selecting a preset assigns it to THIS week) ── */
+  _renderPresetPills(session) {
+    const container = document.getElementById('stu-preset-pills');
+    if (!container) return;
+    const presets   = this._readPresets();
+    const activeId  = session?.presetId || '';
+
+    container.innerHTML = presets.map(p => {
+      const isActive   = p.id === activeId;
+      const maxSummary = p.maxMarks?.length ? p.maxMarks.join('/') : '—';
+      return `<label style="display:inline-flex;align-items:center;gap:7px;background:${isActive?'rgba(245,158,11,.15)':'rgba(255,255,255,.04)'};border:1px solid ${isActive?'rgba(245,158,11,.45)':'var(--border,#2a2820)'};border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;color:${isActive?'#f59e0b':'var(--text,#e8e4d8)'};user-select:none;transition:all .15s;">
+        <input type="radio" name="stu-preset" value="${p.id}" ${isActive?'checked':''} onchange="__ssc.selectPreset('${p.id}')" style="accent-color:#f59e0b;margin-top:1px;">
+        <span><strong>${p.name}</strong> <span style="color:var(--text-muted,#6b6656);font-size:10px;">max: ${maxSummary}</span></span>
+        ${!p.builtIn?`<button onclick="event.preventDefault();event.stopPropagation();__ssc.deletePreset('${p.id}')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:11px;padding:0 0 0 4px;">✕</button>`:''}
+      </label>`;
+    }).join('') +
+    `<label style="display:inline-flex;align-items:center;gap:7px;background:${!activeId?'rgba(255,255,255,.07)':'rgba(255,255,255,.03)'};border:1px solid ${!activeId?'var(--border-light,#38352a)':'var(--border,#2a2820)'};border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted,#6b6656);user-select:none;">
+      <input type="radio" name="stu-preset" value="" ${!activeId?'checked':''} onchange="__ssc.selectPreset('')" style="accent-color:#34d399;">
+      <span>Score Card max</span>
+    </label>`;
+  },
+
+  /* ── Selecting a preset NOW assigns it to the active week ── */
+  selectPreset(id) {
+    const sessions = this._readWeekly();
+    if (!sessions.length || this._activeWeekIdx >= sessions.length) {
+      // No week yet — just store as global default
+      this._setActivePreset(id);
+    } else {
+      sessions[this._activeWeekIdx].presetId = id;
+      this._writeWeekly(sessions);
+      this._setActivePreset(id); // also set global so new weeks inherit it
+    }
+    this.renderStudents();
+  },
+
+  savePreset() {
+    const nameEl = document.getElementById('stu-new-preset-name');
+    const name   = nameEl?.value.trim();
+    if (!name) { alert('Please enter a preset name.'); return; }
+    const maxMarks = this.sscRows.map((s,i) => {
+      const el = document.getElementById(`stu-preset-max-${i}`);
+      return parseFloat(el?.value) || s.max;
+    });
+    const presets = this._readPresets();
+    const id      = 'preset_' + Date.now();
+    presets.push({ id, name, maxMarks, builtIn: false });
+    this._writePresets(presets);
+    // Assign to active week
+    const sessions = this._readWeekly();
+    if (sessions[this._activeWeekIdx]) { sessions[this._activeWeekIdx].presetId = id; this._writeWeekly(sessions); }
+    this._setActivePreset(id);
+    if (nameEl) nameEl.value = '';
+    this.renderStudents();
+  },
+
+  deletePreset(id) {
+    if (!confirm('Delete this preset?')) return;
+    const presets = this._readPresets().filter(p => p.id !== id);
+    this._writePresets(presets);
+    const active = localStorage.getItem('calchub_ssc_active_preset');
+    if (active === id) localStorage.removeItem('calchub_ssc_active_preset');
+    this.renderStudents();
+  },
+
+  /* ── Student week-by-week progress modal ── */
+  showProgress(stuId) {
+    const students  = this._readStudents();
+    const sessions  = this._readWeekly();
+    const st        = students.find(s => s.id === stuId);
+    if (!st) return;
+
+    const rows = sessions.map((sess, wi) => {
+      const preset   = this._readPresets().find(p => p.id === sess.presetId);
+      const maxMarks = this.sscRows.map((s,i) => (preset?.maxMarks?.[i]) || s.max);
+      const totMax   = maxMarks.reduce((a,v) => a+v, 0);
+      const weekStu  = sess.students.find(s => s.id === stuId);
+      const marks    = weekStu?.marks || [];
+      const totObt   = marks.reduce((a,m) => a+(parseFloat(m.obt)||0), 0);
+      const pct      = totMax ? ((totObt/totMax)*100) : 0;
+      return { date: sess.date, totObt, totMax, pct, marks, presetName: preset?.name || 'Score Card max' };
+    }).reverse(); // chronological
+
+    const maxPct = Math.max(...rows.map(r => r.pct), 1);
+
+    const barRows = rows.map((r,i) => {
+      const g   = this._grade(r.pct);
+      const barW = (r.pct / maxPct * 100).toFixed(1);
+      const subjectDetail = this.sscRows.map((s,si) =>
+        `<span style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">${s.name.substring(0,4)}: <span style="color:var(--text,#e8e4d8);">${parseFloat(r.marks[si]?.obt)||0}</span></span>`
+      ).join(' · ');
+
+      return `<div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px;margin-bottom:4px;">
+          <span style="color:var(--text,#e8e4d8);">${this._fmtDate(r.date)}</span>
+          <span style="color:var(--text-muted,#6b6656);font-size:10px;">${r.presetName}</span>
+          <span style="color:${g.c};font-weight:700;">${r.pct.toFixed(1)}%</span>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:99px;height:10px;overflow:hidden;margin-bottom:4px;">
+          <div style="width:${barW}%;height:100%;background:${g.c};border-radius:99px;transition:width .4s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">${subjectDetail}</div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#34d399;font-weight:600;">${r.totObt}/${r.totMax}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Trend arrow
+    const trend = rows.length >= 2
+      ? (rows[rows.length-1].pct - rows[rows.length-2].pct)
+      : null;
+    const trendHtml = trend !== null
+      ? `<span style="color:${trend>=0?'#34d399':'#f87171'};font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">${trend>=0?'↑':'↓'} ${Math.abs(trend).toFixed(1)}%</span> vs last week`
+      : '';
+
+    document.getElementById('stu-progress-inner').innerHTML = `
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.1),rgba(56,189,248,.03));padding:1.1rem 1.25rem;border-bottom:1px solid #2a2820;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#38bdf8;">${st.name || st.id}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted,#6b6656);">${st.roll ? 'Roll: '+st.roll+' · ' : ''}${rows.length} week(s) of data · ${trendHtml}</div>
+        </div>
+        <button onclick="__ssc.closeProgress()" style="background:rgba(255,255,255,.06);border:1px solid #2a2820;border-radius:6px;color:var(--text-muted,#6b6656);font-size:12px;padding:4px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;flex-shrink:0;">✕</button>
+      </div>
+      <div style="padding:1rem 1.25rem;max-height:65vh;overflow-y:auto;">
+        ${rows.length ? barRows : '<div style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:JetBrains Mono,monospace;font-size:12px;">No weekly data yet.</div>'}
+      </div>`;
+
+    document.getElementById('stu-progress-overlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeProgress(e) {
+    if (e && e.target !== document.getElementById('stu-progress-overlay')) return;
+    const el = document.getElementById('stu-progress-overlay');
+    if (el) el.style.display = 'none';
+    document.body.style.overflow = '';
+
+    },
 
   /* ═══════════════════════════════════════
      EXPORT / IMPORT
