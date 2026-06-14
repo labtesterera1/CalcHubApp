@@ -111,19 +111,18 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Photo upload — input nested INSIDE label, visually hidden but present -->
-        <label style="cursor:pointer;display:block;-webkit-tap-highlight-color:transparent;" title="Tap to add student photo">
-          <div class="student-pic-wrap" id="ssc-pic-wrap">
-            <div class="student-pic-inner" id="ssc-pic-inner">
-              <span class="student-pic-icon">🎓</span>
-              <span class="student-pic-hint">Add<br>Photo</span>
-            </div>
-            <div class="student-pic-ring"></div>
-            <div class="student-pic-badge">📷</div>
+        <!-- Photo upload — simple visible input styled as circle -->
+        <div class="student-pic-wrap" id="ssc-pic-wrap" style="position:relative;overflow:hidden;">
+          <div class="student-pic-inner" id="ssc-pic-inner">
+            <span class="student-pic-icon">🎓</span>
+            <span class="student-pic-hint">Add<br>Photo</span>
           </div>
+          <div class="student-pic-ring"></div>
+          <div class="student-pic-badge">📷</div>
+          <!-- File input covers entire circle — fully transparent on top -->
           <input type="file" id="ssc-pic-input" accept="image/*"
-            style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
-        </label>
+            style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10;font-size:0;">
+        </div>
 
         <!-- Info fields -->
         <div class="student-fields">
