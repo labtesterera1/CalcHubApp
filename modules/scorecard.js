@@ -111,8 +111,8 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Photo upload — label wraps input for native mobile file picker -->
-        <label for="ssc-pic-input" title="Tap to add student photo" style="cursor:pointer;display:block;">
+        <!-- Photo upload — input nested INSIDE label, visually hidden but present -->
+        <label style="cursor:pointer;display:block;-webkit-tap-highlight-color:transparent;" title="Tap to add student photo">
           <div class="student-pic-wrap" id="ssc-pic-wrap">
             <div class="student-pic-inner" id="ssc-pic-inner">
               <span class="student-pic-icon">🎓</span>
@@ -121,8 +121,9 @@ export const scorecardModule = {
             <div class="student-pic-ring"></div>
             <div class="student-pic-badge">📷</div>
           </div>
+          <input type="file" id="ssc-pic-input" accept="image/*"
+            style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
         </label>
-        <input type="file" id="ssc-pic-input" accept="image/*" style="display:none;position:absolute;width:0;height:0;opacity:0;">
 
         <!-- Info fields -->
         <div class="student-fields">
