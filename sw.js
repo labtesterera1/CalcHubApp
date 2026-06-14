@@ -1,10 +1,10 @@
 /* ============================================================
-   CalcHubApp — Service Worker  v2.0
+   CalcHubApp — Service Worker  v3.0
    Cache-first for assets, network-first for navigation
-   Fixed: removed non-existent ui.js, correct cache busting
+   v3.0: bump forces old broken cache to be cleared on next load
    ============================================================ */
 
-const CACHE_NAME = 'calchubapp-v2.0';
+const CACHE_NAME = 'calchubapp-v3.0';
 
 const STATIC_ASSETS = [
   './index.html',
