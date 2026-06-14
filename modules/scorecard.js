@@ -9,6 +9,7 @@ const SSC_KEY     = 'calchub_ssc_v4';      // current session data
 const PHOTO_KEY   = 'calchub_ssc_photo';   // student photo
 const HISTORY_KEY  = 'calchub_ssc_history';  // weekly test history array
 const STUDENTS_KEY = 'calchub_ssc_students'; // other students roster
+const PRESETS_KEY  = 'calchub_ssc_presets';  // max mark presets (CALC1, CALC2...)
 
 function sscWrite(data) {
   try {
@@ -349,15 +350,46 @@ export const scorecardModule = {
 
     <!-- ══ OTHER STUDENTS ══ -->
     <div id="subpanel-students" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem;">
+
+      <!-- Max Mark Presets -->
+      <div style="background:var(--surface,#14130f);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:1rem 1.1rem;margin-bottom:12px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#34d399;border-left:3px solid #34d399;padding-left:8px;margin-bottom:10px;">
+          📐 Max Mark Presets — select exam type to set correct max per subject
+        </div>
+
+        <!-- Preset selector pills -->
+        <div id="stu-preset-pills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
+
+        <!-- Custom max mark inputs (shown per subject) -->
+        <div id="stu-preset-inputs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;"></div>
+
+        <!-- Add new preset -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+          <input type="text" id="stu-new-preset-name" placeholder="Preset name (e.g. CALC 3)"
+            style="background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;flex:1;min-width:130px;max-width:200px;">
+          <button onclick="__ssc.savePreset()"
+            style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;white-space:nowrap;">
+            + Save Preset
+          </button>
+          <span style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">Enter max marks above then save as preset</span>
+        </div>
+      </div>
+
+      <!-- Top action bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">Manage up to 10 students — Student01 to Student10.</p>
         <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
       </div>
 
-      <!-- Subject column headers (shared with main scorecard) -->
+      <!-- Subject header -->
       <div id="stu-subject-header" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#34d399;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <span>📚 Subjects from Score Card:</span>
+        <span>📚 Subjects:</span>
         <span id="stu-subject-names" style="color:var(--text-muted,#6b6656);">—</span>
+        <span style="color:var(--text-muted,#6b6656);">|</span>
+        <span>Max:</span>
+        <span id="stu-max-display" style="color:#f59e0b;">—</span>
+        <span style="color:var(--text-muted,#6b6656);">| Active preset:</span>
+        <span id="stu-active-preset-name" style="color:#34d399;font-weight:700;">None</span>
       </div>
 
       <!-- Students table -->
@@ -1109,7 +1141,113 @@ export const scorecardModule = {
 
 Object.assign(scorecardModule, {
 
-  /* ── Storage helpers ── */
+  /* ── Preset storage helpers ── */
+  _readPresets() {
+    try {
+      const raw = localStorage.getItem(PRESETS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    // Seed built-in presets with real values (saves on first call)
+    const defaults = [
+      { id: 'calc1', name: 'CALC 1', maxMarks: [60, 45, 45], builtIn: true },
+      { id: 'calc2', name: 'CALC 2', maxMarks: [90, 60, 60], builtIn: true },
+    ];
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(defaults)); } catch {}
+    return defaults;
+  },
+
+  _writePresets(list) {
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); } catch(e) { console.warn('[SSC] Presets write failed:', e.name); }
+  },
+
+  _getActivePreset() {
+    try {
+      const id = localStorage.getItem('calchub_ssc_active_preset');
+      if (!id) return null;
+      return this._readPresets().find(p => p.id === id) || null;
+    } catch { return null; }
+  },
+
+  _setActivePreset(id) {
+    try { localStorage.setItem('calchub_ssc_active_preset', id); } catch {}
+  },
+
+  _renderPresetPills() {
+    const container = document.getElementById('stu-preset-pills');
+    if (!container) return;
+    const presets   = this._readPresets();
+    const activeId  = localStorage.getItem('calchub_ssc_active_preset') || '';
+    const subjects  = this.sscRows;
+
+    container.innerHTML = presets.map(p => {
+      const isActive = p.id === activeId;
+      const maxSummary = p.maxMarks.length
+        ? p.maxMarks.slice(0, subjects.length).join('/') || '—'
+        : '(no max set)';
+      return `<label style="display:inline-flex;align-items:center;gap:7px;background:${isActive?'rgba(52,211,153,.15)':'rgba(255,255,255,.04)'};border:1px solid ${isActive?'rgba(52,211,153,.4)':'var(--border,#2a2820)'};border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;color:${isActive?'#34d399':'var(--text,#e8e4d8)'};transition:all .2s;user-select:none;">
+        <input type="radio" name="stu-preset" value="${p.id}" ${isActive?'checked':''} onchange="__ssc.selectPreset('${p.id}')" style="accent-color:#34d399;">
+        <span><strong>${p.name}</strong><span style="color:var(--text-muted,#6b6656);font-size:10px;margin-left:6px;">max: ${maxSummary}</span></span>
+        ${!p.builtIn ? `<button onclick="event.preventDefault();event.stopPropagation();__ssc.deletePreset('${p.id}')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:11px;padding:0 0 0 6px;" title="Delete preset">✕</button>` : ''}
+      </label>`;
+    }).join('') +
+    // "None" option
+    `<label style="display:inline-flex;align-items:center;gap:7px;background:${!activeId?'rgba(255,255,255,.07)':'rgba(255,255,255,.04)'};border:1px solid ${!activeId?'var(--border-light,#38352a)':'var(--border,#2a2820)'};border-radius:8px;padding:7px 12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted,#6b6656);user-select:none;">
+      <input type="radio" name="stu-preset" value="" ${!activeId?'checked':''} onchange="__ssc.selectPreset('')" style="accent-color:#34d399;">
+      <span>Use Score Card max</span>
+    </label>`;
+  },
+
+  _renderPresetInputs(currentMax) {
+    const container = document.getElementById('stu-preset-inputs');
+    if (!container) return;
+    const subjects = this.sscRows;
+    if (!subjects.length) { container.innerHTML = ''; return; }
+    container.innerHTML = subjects.map((s, i) => `
+      <div style="background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:6px;padding:8px 10px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted,#6b6656);margin-bottom:5px;">MM${i+1} — ${s.name}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--text-muted,#6b6656);">Max:</span>
+          <input type="number" id="stu-preset-max-${i}" value="${currentMax[i]||s.max}" min="1"
+            style="width:70px;background:var(--surface,#14130f);border:1px solid rgba(245,158,11,.3);border-radius:4px;color:#f59e0b;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;padding:4px 8px;outline:none;-moz-appearance:textfield;">
+        </div>
+      </div>`).join('');
+  },
+
+  selectPreset(id) {
+    this._setActivePreset(id);
+    this.renderStudents();
+  },
+
+  savePreset() {
+    const nameEl = document.getElementById('stu-new-preset-name');
+    const name   = nameEl?.value.trim();
+    if (!name) { alert('Please enter a preset name (e.g. CALC 3)'); return; }
+
+    const subjects  = this.sscRows;
+    const maxMarks  = subjects.map((s, i) => {
+      const el = document.getElementById(`stu-preset-max-${i}`);
+      return parseFloat(el?.value) || s.max;
+    });
+
+    const presets = this._readPresets();
+    const id      = 'preset_' + Date.now();
+    presets.push({ id, name, maxMarks, builtIn: false });
+    this._writePresets(presets);
+    this._setActivePreset(id);
+    if (nameEl) nameEl.value = '';
+    this.renderStudents();
+  },
+
+  deletePreset(id) {
+    if (!confirm('Delete this preset?')) return;
+    const presets = this._readPresets().filter(p => p.id !== id);
+    this._writePresets(presets);
+    const active = localStorage.getItem('calchub_ssc_active_preset');
+    if (active === id) localStorage.removeItem('calchub_ssc_active_preset');
+    this.renderStudents();
+  },
+
+  /* ── Student storage helpers ── */
   _readStudents() {
     try {
       const raw = localStorage.getItem(STUDENTS_KEY);
@@ -1125,13 +1263,18 @@ Object.assign(scorecardModule, {
   addStudent() {
     const list = this._readStudents();
     if (list.length >= 10) { alert('Maximum 10 students reached.'); return; }
-    const id = list.length + 1;
+    const id    = list.length + 1;
     const label = 'Student' + String(id).padStart(2,'0');
+    const preset = this._getActivePreset();
     list.push({
       id: label,
       name: '',
       roll: '',
-      marks: this.sscRows.map(s => ({ subj: s.name, max: s.max, obt: 0 })),
+      marks: this.sscRows.map((s, i) => ({
+        subj: s.name,
+        max:  (preset?.maxMarks?.[i]) || s.max,
+        obt:  0
+      })),
     });
     this._writeStudents(list);
     this.renderStudents();
@@ -1148,10 +1291,6 @@ Object.assign(scorecardModule, {
   renderStudents() {
     const subjects = this.sscRows;
 
-    // Update subject header
-    const snEl = document.getElementById('stu-subject-names');
-    if (snEl) snEl.textContent = subjects.map(s => s.name).join(' · ') || 'No subjects yet';
-
     // Show swipe hint on narrow screens
     const hint = document.getElementById('stu-scroll-hint');
     if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
@@ -1162,23 +1301,50 @@ Object.assign(scorecardModule, {
 
     let list = this._readStudents();
 
-    // Sync subject columns if subjects changed
+    // Get active preset max marks
+    const activePreset = this._getActivePreset();
+    const maxMarks = subjects.map((s, i) =>
+      (activePreset && activePreset.maxMarks[i] != null)
+        ? parseFloat(activePreset.maxMarks[i]) || s.max
+        : s.max
+    );
+    const totalMaxAll = maxMarks.reduce((a,v) => a+v, 0);
+
+    // Update subject + max display
+    const snEl = document.getElementById('stu-subject-names');
+    if (snEl) snEl.textContent = subjects.map(s => s.name).join(' · ') || '—';
+    const mdEl = document.getElementById('stu-max-display');
+    if (mdEl) mdEl.textContent = maxMarks.join(' / ') + ' (Total: ' + totalMaxAll + ')';
+    const apEl = document.getElementById('stu-active-preset-name');
+    if (apEl) apEl.textContent = activePreset ? activePreset.name : 'None (using Score Card max)';
+
+    // Render preset pills
+    this._renderPresetPills();
+
+    // Render preset max inputs
+    this._renderPresetInputs(maxMarks);
+
+    // Sync subject columns — use preset max
     list = list.map(st => {
       const existingMarks = st.marks || [];
       const synced = subjects.map((s, i) => {
         const found = existingMarks.find(m => m.subj === s.name);
-        return found ? { ...found, subj: s.name, max: s.max } : { subj: s.name, max: s.max, obt: 0 };
+        return found ? { ...found, subj: s.name, max: maxMarks[i] } : { subj: s.name, max: maxMarks[i], obt: 0 };
       });
       return { ...st, marks: synced };
     });
 
-    // Build header
+    // Build header with max marks shown
     thead.innerHTML = `<tr>
       <th style="min-width:90px;text-align:left;padding-left:10px;">Student ID</th>
       <th style="min-width:120px;">Name</th>
       <th style="min-width:80px;">Roll No</th>
-      ${subjects.map((s,i) => `<th style="min-width:70px;color:#38bdf8;" title="${s.name}">MM${i+1}<br><span style="font-size:9px;color:var(--text-muted,#6b6656);">${s.name.substring(0,6)}</span></th>`).join('')}
-      <th style="min-width:70px;color:#34d399;">TM</th>
+      ${subjects.map((s,i) => `<th style="min-width:72px;color:#38bdf8;" title="${s.name}">
+        MM${i+1}<br>
+        <span style="font-size:9px;color:var(--text-muted,#6b6656);">${s.name.substring(0,6)}</span><br>
+        <span style="font-size:10px;color:#f59e0b;">/${maxMarks[i]}</span>
+      </th>`).join('')}
+      <th style="min-width:70px;color:#34d399;">TM<br><span style="font-size:9px;color:#f59e0b;">/${totalMaxAll}</span></th>
       <th style="min-width:70px;color:#fcd34d;">TP%</th>
       <th style="min-width:40px;"></th>
     </tr>`;
