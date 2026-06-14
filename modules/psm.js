@@ -10,7 +10,7 @@ export const psmModule = {
   id:    'psm',
   label: 'PSM Server',
   icon:  '🖥️',
-  desc:  'NIK PSM Storage Sizing',
+  desc:  'NIK PSM Storage Sizing (Vault + PAReplicate)',
   accent: '#d4ff3a',
   accentRgb: '212,255,58',
 
@@ -37,19 +37,24 @@ export const psmModule = {
     <div id="psm-panel-orig">
 
       <div class="sec-title-formula">
-        S<sub>PSM</sub> = (C<sub>session</sub>) × (t<sub>session</sub>) × (R<sub>recording</sub>) + 20 GB
+        S<sub>PSM</sub> = (t<sub>retention</sub>) × (N<sub>session</sub>) × (t<sub>session</sub>) × (R<sub>recording</sub>) + 20 GB
       </div>
 
       <div class="formula-box-orig psm-orig">
         <span class="em-psm">S<sub>PSM</sub></span> = Required storage on PSM Server &nbsp;|&nbsp;
-        <span class="em-psm">C<sub>session</sub></span> = Max concurrent sessions &nbsp;|&nbsp;
+        <span class="em-psm">t<sub>retention</sub></span> = Retention period (days) &nbsp;|&nbsp;
+        <span class="em-psm">N<sub>session</sub></span> = Sessions per day &nbsp;|&nbsp;
         <span class="em-psm">t<sub>session</sub></span> = Avg session length (min) &nbsp;|&nbsp;
         <span class="em-psm">R<sub>recording</sub></span> = Avg bit rate (KB/min)
       </div>
 
-      <div class="orig-row2">
+      <div class="orig-row3">
         <div class="orig-card">
-          <label>Concurrent sessions (C<sub>session</sub>)</label>
+          <label>Retention period — days (t<sub>retention</sub>)</label>
+          <input type="number" class="orig-input psm-color" id="p-retention" min="1" value="90" oninput="__psm.calcOrig()">
+        </div>
+        <div class="orig-card">
+          <label>Sessions per day (N<sub>session</sub>)</label>
           <input type="number" class="orig-input psm-color" id="p-sessions" min="1" value="25" oninput="__psm.calcOrig()">
         </div>
         <div class="orig-card">
@@ -86,11 +91,11 @@ export const psmModule = {
         </div>
       </div>
 
-      <div class="results-3-orig">
+      <div class="results-3-orig" style="grid-template-columns:repeat(4,1fr);">
         <div class="stat-orig">
           <div class="stat-orig-label">Raw recording</div>
-          <div class="stat-orig-value" id="p-raw">1.35</div>
-          <div class="stat-orig-unit">GB</div>
+          <div class="stat-orig-value" id="p-raw">—</div>
+          <div class="stat-orig-unit" id="p-raw-unit">GB</div>
         </div>
         <div class="stat-orig">
           <div class="stat-orig-label">OS overhead</div>
@@ -98,14 +103,19 @@ export const psmModule = {
           <div class="stat-orig-unit">GB (fixed)</div>
         </div>
         <div class="stat-orig hi-psm-stat">
-          <div class="stat-orig-label">S<sub>PSM</sub> required</div>
-          <div class="stat-orig-value" id="p-total">21.35</div>
-          <div class="stat-orig-unit">GB total</div>
+          <div class="stat-orig-label">Vault (S<sub>PSM</sub>)</div>
+          <div class="stat-orig-value" id="p-total">—</div>
+          <div class="stat-orig-unit" id="p-total-unit">GB</div>
+        </div>
+        <div class="stat-orig hi-psm-stat">
+          <div class="stat-orig-label">PAReplicate</div>
+          <div class="stat-orig-value" id="p-pareplicate">—</div>
+          <div class="stat-orig-unit" id="p-pareplicate-unit">GB</div>
         </div>
       </div>
 
       <div class="formula-live-orig" id="p-live">
-        ( 25 ) × ( 180 min ) × ( 300 KB/min ) + 20 GB = <span class="hl-psm">21.35 GB</span>
+        ( 90 days ) × ( 25 sessions/day ) × ( 180 min ) × ( 300 KB/min ) + 20 GB = <span class="hl-psm">— GB</span>
       </div>
 
       <div class="note-box-orig psm-note">
@@ -218,18 +228,38 @@ export const psmModule = {
   },
 
   calcOrig() {
-    const sessions = parseFloat(document.getElementById('p-sessions')?.value) || 0;
-    const duration = parseFloat(document.getElementById('p-duration')?.value) || 0;
-    const rate     = this.getPRate();
-    const rawKB    = sessions * duration * rate;
-    const rawGB    = rawKB / (1000 * 1000);
-    const totalGB  = rawGB + 20;
+    const retention = parseFloat(document.getElementById('p-retention')?.value) || 0;
+    const sessions  = parseFloat(document.getElementById('p-sessions')?.value)  || 0;
+    const duration  = parseFloat(document.getElementById('p-duration')?.value)  || 0;
+    const rate      = this.getPRate();
 
-    const el = id => document.getElementById(id);
-    if (el('p-raw'))   el('p-raw').textContent   = rawGB.toFixed(2);
-    if (el('p-total')) el('p-total').textContent = totalGB.toFixed(2);
-    if (el('p-live'))  el('p-live').innerHTML =
-      `( ${sessions} sessions ) × ( ${duration} min ) × ( ${rate} KB/min ) + 20 GB = <span class="hl-psm">${totalGB.toFixed(2)} GB</span>`;
+    // Full formula: t_retention × N_session × t_session × R_recording + 20 GB
+    const rawKB   = retention * sessions * duration * rate;
+    const rawGB   = rawKB / (1000 * 1000);
+    const totalGB = rawGB + 20;  // Vault storage
+    // PAReplicate = same as Vault (exact mirror)
+    const pareplicateGB = totalGB;
+
+    const el  = id => document.getElementById(id);
+    const fmt = this.fmtGB(rawGB);
+    const fmtTotal = this.fmtGB(totalGB);
+
+    if (el('p-raw'))              el('p-raw').textContent              = fmt.val;
+    if (el('p-raw-unit'))         el('p-raw-unit').textContent         = fmt.unit;
+    if (el('p-total'))            el('p-total').textContent            = fmtTotal.val;
+    if (el('p-total-unit'))       el('p-total-unit').textContent       = fmtTotal.unit;
+    if (el('p-pareplicate'))      el('p-pareplicate').textContent      = fmtTotal.val;
+    if (el('p-pareplicate-unit')) el('p-pareplicate-unit').textContent = fmtTotal.unit;
+
+    if (el('p-live')) el('p-live').innerHTML =
+      `( ${retention} days ) × ( ${sessions} sessions/day ) × ( ${duration} min ) × ( ${rate} KB/min ) + 20 GB`
+      + ` = <span class="hl-psm">${fmtTotal.val} ${fmtTotal.unit}</span>`
+      + ` &nbsp;·&nbsp; PAReplicate: <span class="hl-psm">${fmtTotal.val} ${fmtTotal.unit}</span>`;
+  },
+
+  fmtGB(gb) {
+    if (gb >= 1000) return { val: (gb / 1000).toFixed(2), unit: 'TB' };
+    return { val: gb.toFixed(2), unit: 'GB' };
   },
 
   /* ── Advanced Method ── */

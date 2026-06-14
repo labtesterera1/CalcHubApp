@@ -5,8 +5,9 @@
    ============================================================ */
 
 /* ── Storage helpers — no imports needed, direct localStorage ── */
-const SSC_KEY   = 'calchub_ssc_v4';   // main data key
-const PHOTO_KEY = 'calchub_ssc_photo'; // photo key (separate, large)
+const SSC_KEY     = 'calchub_ssc_v4';      // current session data
+const PHOTO_KEY   = 'calchub_ssc_photo';   // student photo
+const HISTORY_KEY = 'calchub_ssc_history'; // weekly test history array
 
 function sscWrite(data) {
   try {
@@ -94,6 +95,7 @@ export const scorecardModule = {
     <div class="sub-tabs">
       <button class="sub-tab-btn active" id="subtab-scorecard" onclick="__ssc.switchSub('scorecard')">📋 Score Card</button>
       <button class="sub-tab-btn gap-sub" id="subtab-gap" onclick="__ssc.switchSub('gap')">🎯 Gap Analysis</button>
+      <button class="sub-tab-btn" id="subtab-history" onclick="__ssc.switchSub('history')" style="color:#f59e0b;border:none;">📅 Overall Analysis</button>
     </div>
 
     <!-- ══ SCORE CARD ══ -->
@@ -210,6 +212,12 @@ export const scorecardModule = {
         <div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;">
           <button onclick="__ssc.addRow()" style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;">+ Add Subject</button>
           <button onclick="__ssc.resetAll()" style="background:rgba(255,255,255,0.04);border:1px solid var(--border,#2a2820);color:var(--text-muted,#6b6656);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;">↺ Reset</button>
+          <!-- Weekly test date + save -->
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <input type="date" id="ssc-test-date"
+              style="background:var(--bg,#080807);border:1px solid rgba(245,158,11,.35);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:5px 9px;outline:none;color-scheme:dark;cursor:pointer;">
+            <button onclick="__ssc.saveTestRecord()" style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);color:#f59e0b;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">💾 Save Test</button>
+          </div>
           <div id="ssc-autosave-msg" style="font-size:11px;color:#34d399;font-family:'JetBrains Mono',monospace;display:none;margin-left:4px;">✓ Saved</div>
           <div id="ssc-grade-pill" style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;padding:5px 16px;border-radius:20px;border:1px solid var(--border,#2a2820);color:var(--text-muted,#6b6656);">Grade —</div>
         </div>
@@ -278,6 +286,22 @@ export const scorecardModule = {
         <span style="color:#f87171;">■</span> &lt; 60% Needs Attention
       </div>
     </div>
+
+    <!-- ══ OVERALL ANALYSIS ══ -->
+    <div id="subpanel-history" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem;">
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">All saved weekly tests — tap any card to view full breakdown.</p>
+        <button onclick="__ssc.clearHistory()" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;">🗑 Clear All</button>
+      </div>
+      <div id="ssc-history-list"></div>
+
+      <!-- Drill-down modal overlay -->
+      <div id="ssc-drill-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="__ssc.closeDrill(event)">
+        <div id="ssc-drill-card" style="background:#14130f;border:1px solid #2a2820;border-radius:16px;max-width:420px;margin:40px auto;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
+          <div id="ssc-drill-inner"></div>
+        </div>
+      </div>
+    </div>
     `;
   },
 
@@ -325,6 +349,13 @@ export const scorecardModule = {
       console.log('[SSC] Photo restored ✓');
     } else {
       this.studentPhoto = null;
+    }
+
+    // Set today as default test date
+    const dateEl = document.getElementById('ssc-test-date');
+    if (dateEl && !dateEl.value) {
+      const now = new Date();
+      dateEl.value = now.toISOString().slice(0,10);
     }
 
     // Wire photo input
@@ -533,12 +564,14 @@ export const scorecardModule = {
      ROW ACTIONS
      ═══════════════════════════════════════ */
   switchSub(sub) {
-    ['scorecard','gap'].forEach(s => {
-      document.getElementById('subtab-'+s)?.classList.toggle('active', s===sub);
+    ['scorecard','gap','history'].forEach(s => {
+      const btn = document.getElementById('subtab-'+s);
+      if (btn) btn.classList.toggle('active', s===sub);
       const p = document.getElementById('subpanel-'+s);
       if (p) p.style.display = s===sub ? 'block' : 'none';
     });
-    if (sub==='gap') { this.syncGap(); this.calcGap(); }
+    if (sub==='gap')     { this.syncGap(); this.calcGap(); }
+    if (sub==='history') { this.renderHistory(); }
   },
 
   addRow() {
@@ -650,6 +683,232 @@ export const scorecardModule = {
   },
 
   setTarget(key,val){ this.gapTargets[key]=val; this.calcGap(); },
+
+  /* ═══════════════════════════════════════
+     WEEKLY TEST HISTORY
+     ═══════════════════════════════════════ */
+
+  _readHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  },
+
+  _writeHistory(records) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(records)); return true; }
+    catch(e) { console.warn('[SSC] History write failed:', e.name); return false; }
+  },
+
+  saveTestRecord() {
+    const el    = id => document.getElementById(id);
+    const dateEl = el('ssc-test-date');
+    const testDate = dateEl?.value || new Date().toISOString().slice(0,10);
+
+    // Build snapshot of current marks
+    let totObt = 0, totMax = 0;
+    const subjects = this.sscRows.map(s => {
+      totObt += (s.obt||0); totMax += (s.max||0);
+      return { name:s.name, obt:s.obt||0, max:s.max||0, rank:s.rank||0 };
+    });
+    const pct = totMax ? ((totObt/totMax)*100) : 0;
+
+    const record = {
+      id:       Date.now(),
+      date:     testDate,
+      label:    el('ssc-exam')?.value || 'Weekly Test',
+      student:  el('ssc-name')?.value || 'Student',
+      cls:      el('ssc-class')?.value || '',
+      school:   el('ssc-school')?.value || '',
+      examRank: el('ssc-tot-rank')?.value || '',
+      subjects,
+      totObt,
+      totMax,
+      pct:      parseFloat(pct.toFixed(2)),
+      grade:    this._grade(pct).g,
+    };
+
+    const history = this._readHistory();
+    // Check if same date already exists — ask to overwrite
+    const existIdx = history.findIndex(r => r.date === testDate);
+    if (existIdx >= 0) {
+      if (!confirm(`A test record for ${this._fmtDate(testDate)} already exists. Overwrite?`)) return;
+      history[existIdx] = record;
+    } else {
+      history.unshift(record); // newest first
+    }
+    this._writeHistory(history);
+
+    // Flash confirmation
+    const msg = el('ssc-autosave-msg');
+    if (msg) {
+      msg.textContent = `✓ Test saved — ${this._fmtDate(testDate)}`;
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display='none'; msg.textContent='✓ Saved'; }, 3000);
+    }
+    console.log('[SSC] Test record saved for', testDate);
+  },
+
+  clearHistory() {
+    if (!confirm('Delete ALL weekly test records? This cannot be undone.')) return;
+    try { localStorage.removeItem(HISTORY_KEY); } catch {}
+    this.renderHistory();
+  },
+
+  _fmtDate(iso) {
+    try {
+      const d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'numeric' });
+    } catch { return iso; }
+  },
+
+  renderHistory() {
+    const list = document.getElementById('ssc-history-list');
+    if (!list) return;
+    const records = this._readHistory();
+
+    if (!records.length) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:3rem 1rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
+          <div style="font-size:2rem;margin-bottom:12px;">📅</div>
+          <div style="font-size:13px;margin-bottom:6px;">No test records yet</div>
+          <div style="font-size:11px;">Fill in marks, pick a date, then tap <span style="color:#f59e0b;">💾 Save Test</span></div>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = records.map((r,i) => {
+      const g = this._grade(r.pct);
+      const shortfall = Math.max(0, r.totMax - r.totObt);
+      const barW = r.totMax ? Math.min(100, r.pct).toFixed(1) : 0;
+      return `
+      <div class="ssc-hist-card" onclick="__ssc.openDrill(${r.id})" style="border-left:3px solid ${g.c};">
+        <div class="ssc-hist-header">
+          <div>
+            <div class="ssc-hist-date">${this._fmtDate(r.date)}</div>
+            <div class="ssc-hist-label">${r.label}${r.student ? ' · ' + r.student : ''}</div>
+          </div>
+          <div class="ssc-hist-grade" style="color:${g.c};background:${g.bg};border:1px solid ${g.border};">${r.grade}</div>
+        </div>
+        <!-- progress bar -->
+        <div style="background:rgba(255,255,255,.05);border-radius:99px;height:6px;overflow:hidden;margin:8px 0 10px;">
+          <div style="width:${barW}%;height:100%;background:${g.c};border-radius:99px;transition:width .4s;"></div>
+        </div>
+        <!-- 4-box summary -->
+        <div class="ssc-hist-summary">
+          <div class="ssc-hist-box"><div class="ssc-hist-box-lbl">Total Obtained (TM)</div><div class="ssc-hist-box-val">${r.totObt}</div></div>
+          <div class="ssc-hist-box"><div class="ssc-hist-box-lbl">Total Max Marks</div><div class="ssc-hist-box-val">${r.totMax}</div></div>
+          <div class="ssc-hist-box"><div class="ssc-hist-box-lbl">Total % (T%)</div><div class="ssc-hist-box-val" style="color:${g.c};">${r.pct}%</div></div>
+          <div class="ssc-hist-box hl-red"><div class="ssc-hist-box-lbl">⚠ Total Shortfall</div><div class="ssc-hist-box-val">${shortfall} marks</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:right;">tap to view details →</div>
+      </div>`;
+    }).join('');
+  },
+
+  openDrill(id) {
+    const records = this._readHistory();
+    const r = records.find(x => x.id === id);
+    if (!r) return;
+    const g = this._grade(r.pct);
+    const circumference = 2 * Math.PI * 44; // radius 44
+    const dash = (r.pct / 100) * circumference;
+    const shortfall = Math.max(0, r.totMax - r.totObt);
+
+    // Subject rows
+    const subjectRows = (r.subjects || []).map(s => {
+      const sp = s.max ? ((s.obt/s.max)*100) : 0;
+      const sc2 = this._barColor(sp);
+      return `
+        <div class="ssc-drill-subj-row">
+          <div class="ssc-drill-subj-rank">${s.rank ? '<div style='font-size:9px;color:var(--text-muted,#6b6656);letter-spacing:.06em;'>Rank</div><div style='font-size:14px;font-weight:700;color:var(--text,#e8e4d8);'>' + s.rank + '</div>' : '<div style='font-size:11px;color:var(--text-muted,#6b6656);'>—</div>'}</div>
+          <div class="ssc-drill-subj-name">${s.name}</div>
+          <div class="ssc-drill-subj-score" style="color:${sc2};">${s.obt}/${s.max}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('ssc-drill-inner').innerHTML = `
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,rgba(56,189,248,.12) 0%,rgba(56,189,248,.04) 100%);padding:1.25rem 1.25rem 1rem;border-bottom:1px solid #2a2820;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted,#6b6656);letter-spacing:.1em;text-transform:uppercase;">Weekly Test</div>
+          <button onclick="__ssc.closeDrill()" style="background:rgba(255,255,255,.06);border:1px solid #2a2820;border-radius:6px;color:var(--text-muted,#6b6656);font-size:12px;padding:3px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;">✕ Close</button>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#38bdf8;">${r.label}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted,#6b6656);margin-top:2px;">${this._fmtDate(r.date)}${r.student?' · '+r.student:''}</div>
+      </div>
+
+      <!-- Top stats + donut -->
+      <div style="padding:1.1rem 1.25rem;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid #2a2820;">
+        <!-- Left stats -->
+        <div style="flex:1;min-width:140px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Marks Obtained</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--text,#e8e4d8);">${r.totObt}/${r.totMax}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Subjects</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--text,#e8e4d8);">${(r.subjects||[]).length.toString().padStart(2,'0')}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Exam Rank</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--text,#e8e4d8);">${r.examRank||'—'}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Shortfall</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:#f87171;">${shortfall}</div>
+          </div>
+        </div>
+        <!-- Donut % gauge -->
+        <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
+          <svg width="110" height="110" viewBox="0 0 110 110">
+            <circle cx="55" cy="55" r="44" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
+            <circle cx="55" cy="55" r="44" fill="none" stroke="${g.c}" stroke-width="10"
+              stroke-dasharray="${dash.toFixed(1)} ${circumference.toFixed(1)}"
+              stroke-linecap="round"
+              transform="rotate(-90 55 55)"
+              style="transition:stroke-dasharray .6s ease;"/>
+            <!-- small dot top -->
+            <circle cx="55" cy="11" r="4" fill="#f87171"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:${g.c};line-height:1;">${r.pct}%</div>
+            <div style="font-size:9px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;">${g.desc}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subject wise breakdown -->
+      <div style="padding:1rem 1.25rem;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8;margin-bottom:12px;border-left:3px solid #38bdf8;padding-left:8px;">Subject Wise Marks Scored</div>
+        <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-bottom:10px;">Scored Marks / Total Marks</div>
+        ${subjectRows}
+      </div>
+
+      <!-- Delete record -->
+      <div style="padding:0 1.25rem 1.25rem;text-align:right;">
+        <button onclick="__ssc.deleteDrillRecord(${r.id})" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:5px 14px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;">🗑 Delete this record</button>
+      </div>
+    `;
+
+    document.getElementById('ssc-drill-overlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeDrill(e) {
+    if (e && e.target !== document.getElementById('ssc-drill-overlay')) return;
+    document.getElementById('ssc-drill-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+  },
+
+  deleteDrillRecord(id) {
+    if (!confirm('Delete this test record?')) return;
+    const history = this._readHistory().filter(r => r.id !== id);
+    this._writeHistory(history);
+    document.getElementById('ssc-drill-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+    this.renderHistory();
+  },
 
   /* ═══════════════════════════════════════
      HELPERS
