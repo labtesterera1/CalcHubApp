@@ -1790,7 +1790,17 @@ input[type="month"].field-input {
     flex-shrink: 0;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    pointer-events: none; /* let the parent label handle all clicks */
   }
+
+  /* But keep the ring animation on label hover/active */
+  label:hover .student-pic-inner,
+  label:active .student-pic-inner {
+    border-color: #38bdf8;
+    background: rgba(56,189,248,.18);
+  }
+  label:hover .student-pic-ring  { animation-duration: 1s; }
+  label:active .student-pic-wrap { transform: scale(0.96); }
 
   .student-pic-inner {
     width: 68px;
