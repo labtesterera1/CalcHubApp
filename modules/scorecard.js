@@ -292,8 +292,49 @@ export const scorecardModule = {
 
     <!-- ══ OVERALL ANALYSIS ══ -->
     <div id="subpanel-history" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem;">
-        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">All saved weekly tests — tap any card to view full breakdown.</p>
+
+      <!-- Filter bar -->
+      <div style="background:var(--surface,#14130f);border:1px solid var(--border,#2a2820);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#f59e0b;flex-shrink:0;">🔍 Filter</span>
+
+        <!-- Month picker -->
+        <select id="hist-filter-month" onchange="__ssc.applyHistoryFilter()"
+          style="background:var(--bg,#080807);border:1px solid rgba(245,158,11,.3);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;cursor:pointer;flex:1;min-width:110px;">
+          <option value="">All Months</option>
+          <option value="01">January</option>
+          <option value="02">February</option>
+          <option value="03">March</option>
+          <option value="04">April</option>
+          <option value="05">May</option>
+          <option value="06">June</option>
+          <option value="07">July</option>
+          <option value="08">August</option>
+          <option value="09">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+
+        <!-- Year picker — populated dynamically -->
+        <select id="hist-filter-year" onchange="__ssc.applyHistoryFilter()"
+          style="background:var(--bg,#080807);border:1px solid rgba(245,158,11,.3);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;cursor:pointer;flex:1;min-width:90px;">
+          <option value="">All Years</option>
+        </select>
+
+        <!-- Student name filter -->
+        <input type="text" id="hist-filter-student" placeholder="Student name…" oninput="__ssc.applyHistoryFilter()"
+          style="background:var(--bg,#080807);border:1px solid rgba(245,158,11,.3);border-radius:6px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 10px;outline:none;flex:1;min-width:110px;">
+
+        <!-- Reset filters -->
+        <button onclick="__ssc.resetHistoryFilter()"
+          style="background:rgba(255,255,255,.04);border:1px solid var(--border,#2a2820);border-radius:6px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:11px;padding:6px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;">✕ Clear</button>
+
+        <!-- Record count -->
+        <span id="hist-filter-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted,#6b6656);flex-shrink:0;white-space:nowrap;"></span>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">Tap any card to view full breakdown.</p>
         <button onclick="__ssc.clearHistory()" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#f87171;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;">🗑 Clear All</button>
       </div>
       <div id="ssc-history-list"></div>
@@ -320,11 +361,15 @@ export const scorecardModule = {
       </div>
 
       <!-- Students table -->
-      <div class="table-wrap" style="border:1px solid var(--border,#2a2820);border-radius:10px;overflow:hidden;">
-        <table class="ref-table" id="stu-table" style="min-width:600px;">
-          <thead id="stu-thead"></thead>
-          <tbody id="stu-tbody"></tbody>
-        </table>
+      <div style="position:relative;">
+        <!-- Scroll hint on mobile -->
+        <div id="stu-scroll-hint" style="display:none;text-align:right;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-bottom:4px;">← swipe to scroll →</div>
+        <div style="border:1px solid var(--border,#2a2820);border-radius:10px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;max-width:100%;">
+          <table class="ref-table" id="stu-table" style="min-width:700px;table-layout:fixed;">
+            <thead id="stu-thead"></thead>
+            <tbody id="stu-tbody"></tbody>
+          </table>
+        </div>
       </div>
       <div style="margin-top:8px;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
         MM = Marks obtained per subject · TM = Total Marks · TP = Total Percentage
@@ -833,14 +878,56 @@ export const scorecardModule = {
   renderHistory() {
     const list = document.getElementById('ssc-history-list');
     if (!list) return;
-    const records = this._readHistory();
+    const allRecords = this._readHistory();
 
-    if (!records.length) {
+    // Populate year dropdown from actual records
+    const yearEl = document.getElementById('hist-filter-year');
+    if (yearEl) {
+      const years = [...new Set(allRecords.map(r => r.date?.slice(0,4)).filter(Boolean))].sort((a,b) => b-a);
+      const curYear = yearEl.value;
+      yearEl.innerHTML = '<option value="">All Years</option>' +
+        years.map(y => `<option value="${y}" ${y===curYear?'selected':''}>${y}</option>`).join('');
+    }
+
+    if (!allRecords.length) {
       list.innerHTML = `
         <div style="text-align:center;padding:3rem 1rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
           <div style="font-size:2rem;margin-bottom:12px;">📅</div>
           <div style="font-size:13px;margin-bottom:6px;">No test records yet</div>
           <div style="font-size:11px;">Fill in marks, pick a date, then tap <span style="color:#f59e0b;">💾 Save Test</span></div>
+        </div>`;
+      return;
+    }
+
+    // Apply filters
+    const filterMonth   = document.getElementById('hist-filter-month')?.value   || '';
+    const filterYear    = document.getElementById('hist-filter-year')?.value    || '';
+    const filterStudent = (document.getElementById('hist-filter-student')?.value || '').toLowerCase().trim();
+
+    const records = allRecords.filter(r => {
+      if (filterMonth   && r.date?.slice(5,7) !== filterMonth)                          return false;
+      if (filterYear    && r.date?.slice(0,4) !== filterYear)                           return false;
+      if (filterStudent && !r.student?.toLowerCase().includes(filterStudent)
+                        && !r.label?.toLowerCase().includes(filterStudent))             return false;
+      return true;
+    });
+
+    // Update count
+    const countEl = document.getElementById('hist-filter-count');
+    if (countEl) {
+      const isFiltered = filterMonth || filterYear || filterStudent;
+      countEl.textContent = isFiltered
+        ? `${records.length} of ${allRecords.length} records`
+        : `${allRecords.length} records`;
+      countEl.style.color = isFiltered ? '#f59e0b' : 'var(--text-muted,#6b6656)';
+    }
+
+    if (!records.length) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
+          <div style="font-size:1.5rem;margin-bottom:8px;">🔍</div>
+          <div style="font-size:13px;">No records match the filter</div>
+          <div style="font-size:11px;margin-top:4px;">Try clearing the filter above</div>
         </div>`;
       return;
     }
@@ -872,6 +959,20 @@ export const scorecardModule = {
         <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;margin-top:8px;text-align:right;">tap to view details →</div>
       </div>`;
     }).join('');
+  },
+
+  applyHistoryFilter() {
+    this.renderHistory();
+  },
+
+  resetHistoryFilter() {
+    const m = document.getElementById('hist-filter-month');
+    const y = document.getElementById('hist-filter-year');
+    const s = document.getElementById('hist-filter-student');
+    if (m) m.value = '';
+    if (y) y.value = '';
+    if (s) s.value = '';
+    this.renderHistory();
   },
 
   openDrill(id) {
@@ -1050,6 +1151,10 @@ Object.assign(scorecardModule, {
     // Update subject header
     const snEl = document.getElementById('stu-subject-names');
     if (snEl) snEl.textContent = subjects.map(s => s.name).join(' · ') || 'No subjects yet';
+
+    // Show swipe hint on narrow screens
+    const hint = document.getElementById('stu-scroll-hint');
+    if (hint) hint.style.display = window.innerWidth < 600 ? 'block' : 'none';
 
     const thead = document.getElementById('stu-thead');
     const tbody = document.getElementById('stu-tbody');
