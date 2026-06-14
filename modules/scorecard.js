@@ -397,6 +397,7 @@ export const scorecardModule = {
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
+          <button onclick="__ssc.showAllStudents()" style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);color:#38bdf8;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">👁 All Students</button>
           <button onclick="__ssc.resetRoster()" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#f87171;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;" title="Clear student roster and start fresh">🗑 Reset Roster</button>
         </div>
       </div>
@@ -416,6 +417,13 @@ export const scorecardModule = {
       <div id="stu-progress-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1001;backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="__ssc.closeProgress(event)">
         <div style="background:#14130f;border:1px solid #2a2820;border-radius:16px;max-width:480px;margin:40px auto;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
           <div id="stu-progress-inner"></div>
+        </div>
+      </div>
+
+      <!-- All Students View modal -->
+      <div id="stu-allview-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1002;backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="__ssc.closeAllStudents(event)">
+        <div style="background:#14130f;border:1px solid #2a2820;border-radius:16px;max-width:680px;margin:30px auto 60px;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
+          <div id="stu-allview-inner"></div>
         </div>
       </div>
     </div>
@@ -738,6 +746,7 @@ export const scorecardModule = {
           <span style="font-size:10px;color:var(--text-muted,#6b6656);min-width:48px;font-family:'JetBrains Mono',monospace;">${s.obt}/${s.max}</span>
         </div>`;
       }).join('');
+    tbody.innerHTML = noWeekBanner + tbody.innerHTML;
     }
   },
 
@@ -1562,15 +1571,14 @@ Object.assign(scorecardModule, {
       return;
     }
 
-    if (!session) {
-      tbody.innerHTML = `<tr><td colspan="${6+subjects.length}" style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:12px;">
-        No week selected — tap <strong style="color:#34d399;">+ New Week</strong> to add the first week
-      </td></tr>`;
-      return;
-    }
+    // Banner row when no week is selected (prepended to student rows)
+    const noWeekBanner = !session ? `<tr><td colspan="${6+subjects.length}" style="text-align:center;padding:8px;background:rgba(245,158,11,.06);border-bottom:1px solid rgba(245,158,11,.2);font-family:'JetBrains Mono',monospace;font-size:11px;color:#f59e0b;">
+      ⚠ No week selected — tap <strong>+ New Week</strong> above to start entering marks. Students listed below are from the roster.
+    </td></tr>` : '';
 
+    // Always render student rows — show 0 marks if no week selected
     tbody.innerHTML = students.map((st, idx) => {
-      const weekStu  = session.students.find(s => s.id === st.id);
+      const weekStu  = session ? session.students.find(s => s.id === st.id) : null;
       const marks    = weekStu?.marks || subjects.map(s => ({ subj:s.name, obt:0 }));
       const totObt   = marks.reduce((a,m) => a+(parseFloat(m.obt)||0), 0);
       const pct      = totalMaxAll ? ((totObt/totalMaxAll)*100).toFixed(1) : '—';
@@ -1581,7 +1589,8 @@ Object.assign(scorecardModule, {
           <input type="number" value="${parseFloat(marks[mi]?.obt)||0}" min="0" max="${maxMarks[mi]}"
             data-stu-id="${st.id}" data-mark="${mi}"
             onchange="__ssc._onWeekMarkChange('${st.id}',${mi},this.value)"
-            style="width:52px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:3px 5px;text-align:center;outline:none;-moz-appearance:textfield;">
+            ${!session ? 'disabled title="Add a week first"' : ''}
+            style="width:52px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:${session?'var(--text,#e8e4d8)':'var(--text-muted,#6b6656)'};font-family:'JetBrains Mono',monospace;font-size:12px;padding:3px 5px;text-align:center;outline:none;-moz-appearance:textfield;opacity:${session?1:0.4};">
         </td>`
       ).join('');
 
