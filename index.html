@@ -2088,6 +2088,56 @@ input[type="month"].field-input {
   .ssc-drill-subj-name { font-size: 15px; }
   .ssc-drill-subj-score { font-size: 15px; min-width: 70px; }
 
+
+  /* ═══════════════════════════════════════════
+     STUDENTS TABLE — MOBILE SCROLL FIX
+     ═══════════════════════════════════════════ */
+
+  /* Force horizontal scroll on the students table wrapper */
+  #subpanel-students .table-scroll-wrap,
+  #subpanel-students > div > div {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+  }
+
+  /* Fixed column widths so table doesn't collapse */
+  #stu-table { min-width: 700px; table-layout: auto; }
+  #stu-table td, #stu-table th { white-space: nowrap; }
+
+  /* Student ID col */
+  #stu-table th:first-child,
+  #stu-table td:first-child { min-width: 90px; }
+
+  /* Name + Roll */
+  #stu-table th:nth-child(2), #stu-table td:nth-child(2) { min-width: 130px; }
+  #stu-table th:nth-child(3), #stu-table td:nth-child(3) { min-width: 80px; }
+
+  /* Mark inputs */
+  #stu-table input[type="number"] { width: 56px !important; min-width: 56px; }
+  #stu-table input[type="text"]   { min-width: 110px; }
+
+  /* Scroll indicator bar at bottom of table */
+  #subpanel-students > div {
+    position: relative;
+  }
+
+  /* ═══════════════════════════════════════════
+     HISTORY FILTER BAR — MOBILE
+     ═══════════════════════════════════════════ */
+  #hist-filter-month,
+  #hist-filter-year,
+  #hist-filter-student {
+    min-width: 90px;
+    max-width: 160px;
+  }
+
+  @media (max-width: 480px) {
+    #hist-filter-month,
+    #hist-filter-year { flex: 1 1 calc(50% - 4px); min-width: 100px; }
+    #hist-filter-student { flex: 1 1 100%; max-width: 100%; }
+  }
+
 </style>
 </head>
 
