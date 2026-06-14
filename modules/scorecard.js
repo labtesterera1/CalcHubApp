@@ -7,7 +7,8 @@
 /* ── Storage helpers — no imports needed, direct localStorage ── */
 const SSC_KEY     = 'calchub_ssc_v4';      // current session data
 const PHOTO_KEY   = 'calchub_ssc_photo';   // student photo
-const HISTORY_KEY = 'calchub_ssc_history'; // weekly test history array
+const HISTORY_KEY  = 'calchub_ssc_history';  // weekly test history array
+const STUDENTS_KEY = 'calchub_ssc_students'; // other students roster
 
 function sscWrite(data) {
   try {
@@ -92,10 +93,12 @@ export const scorecardModule = {
     </div>
 
     <!-- Sub-tabs -->
-    <div class="sub-tabs">
+    <div class="sub-tabs" style="overflow-x:auto;flex-wrap:nowrap;">
       <button class="sub-tab-btn active" id="subtab-scorecard" onclick="__ssc.switchSub('scorecard')">📋 Score Card</button>
       <button class="sub-tab-btn gap-sub" id="subtab-gap" onclick="__ssc.switchSub('gap')">🎯 Gap Analysis</button>
-      <button class="sub-tab-btn" id="subtab-history" onclick="__ssc.switchSub('history')" style="color:#f59e0b;border:none;">📅 Overall Analysis</button>
+      <button class="sub-tab-btn" id="subtab-history" onclick="__ssc.switchSub('history')" style="color:#f59e0b;border:none;">📅 Analysis</button>
+      <button class="sub-tab-btn" id="subtab-students" onclick="__ssc.switchSub('students')" style="color:#34d399;border:none;">👥 Students</button>
+      <button class="sub-tab-btn" id="subtab-transfer" onclick="__ssc.switchSub('transfer')" style="color:#c084fc;border:none;">📤 Export/Import</button>
     </div>
 
     <!-- ══ SCORE CARD ══ -->
@@ -299,6 +302,70 @@ export const scorecardModule = {
       <div id="ssc-drill-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;backdrop-filter:blur(4px);overflow-y:auto;-webkit-overflow-scrolling:touch;" onclick="__ssc.closeDrill(event)">
         <div id="ssc-drill-card" style="background:#14130f;border:1px solid #2a2820;border-radius:16px;max-width:420px;margin:40px auto;padding:0;overflow:hidden;" onclick="event.stopPropagation()">
           <div id="ssc-drill-inner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ OTHER STUDENTS ══ -->
+    <div id="subpanel-students" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem;">
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin:0;">Manage up to 10 students — Student01 to Student10.</p>
+        <button onclick="__ssc.addStudent()" style="background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:600;">+ Add Student</button>
+      </div>
+
+      <!-- Subject column headers (shared with main scorecard) -->
+      <div id="stu-subject-header" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#34d399;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span>📚 Subjects from Score Card:</span>
+        <span id="stu-subject-names" style="color:var(--text-muted,#6b6656);">—</span>
+      </div>
+
+      <!-- Students table -->
+      <div class="table-wrap" style="border:1px solid var(--border,#2a2820);border-radius:10px;overflow:hidden;">
+        <table class="ref-table" id="stu-table" style="min-width:600px;">
+          <thead id="stu-thead"></thead>
+          <tbody id="stu-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;">
+        MM = Marks obtained per subject · TM = Total Marks · TP = Total Percentage
+      </div>
+    </div>
+
+    <!-- ══ EXPORT / IMPORT ══ -->
+    <div id="subpanel-transfer" style="display:none;">
+      <div style="margin-bottom:1rem;">
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);line-height:1.6;">
+          Export all Score Card data (current student + weekly history + other students) as a JSON file.<br>
+          Import on any device to restore everything exactly.
+        </p>
+      </div>
+
+      <!-- Export -->
+      <div style="background:var(--surface,#14130f);border:1px solid rgba(192,132,252,.25);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:10px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#c084fc;border-left:3px solid #c084fc;padding-left:8px;margin-bottom:10px;">📤 Export Data</div>
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin-bottom:12px;">Downloads a <code style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-size:11px;">.json</code> file with all your Score Card data. Send it to yourself via email, WhatsApp, or any app.</p>
+        <button onclick="__ssc.exportData()" style="background:rgba(192,132,252,.15);border:1px solid rgba(192,132,252,.4);color:#c084fc;border-radius:6px;padding:9px 20px;font-size:13px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;">⬇ Download Export File</button>
+      </div>
+
+      <!-- Import -->
+      <div style="background:var(--surface,#14130f);border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:10px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#38bdf8;border-left:3px solid #38bdf8;padding-left:8px;margin-bottom:10px;">📥 Import Data</div>
+        <p style="font-size:12px;color:var(--text-muted,#6b6656);margin-bottom:12px;">Select a previously exported <code style="background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-size:11px;">.json</code> file. This will <strong style="color:#f87171;">merge</strong> imported records with existing data.</p>
+        <label style="display:inline-block;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.4);color:#38bdf8;border-radius:6px;padding:9px 20px;font-size:13px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.05em;">
+          ⬆ Select Import File
+          <input type="file" id="ssc-import-file" accept=".json" style="display:none;" onchange="__ssc.importData(this)">
+        </label>
+        <div id="ssc-import-status" style="margin-top:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#34d399;display:none;"></div>
+      </div>
+
+      <!-- What's included -->
+      <div style="background:rgba(255,255,255,.03);border:1px solid var(--border,#2a2820);border-radius:8px;padding:.9rem 1.1rem;">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted,#6b6656);margin-bottom:8px;">Export includes</div>
+        <div style="font-size:12px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;line-height:2;">
+          ✓ Current student info &amp; marks<br>
+          ✓ All weekly test history records<br>
+          ✓ Other Students roster (Student01–10)<br>
+          ✓ Student photo (if saved)
         </div>
       </div>
     </div>
@@ -564,14 +631,15 @@ export const scorecardModule = {
      ROW ACTIONS
      ═══════════════════════════════════════ */
   switchSub(sub) {
-    ['scorecard','gap','history'].forEach(s => {
+    ['scorecard','gap','history','students','transfer'].forEach(s => {
       const btn = document.getElementById('subtab-'+s);
       if (btn) btn.classList.toggle('active', s===sub);
       const p = document.getElementById('subpanel-'+s);
       if (p) p.style.display = s===sub ? 'block' : 'none';
     });
-    if (sub==='gap')     { this.syncGap(); this.calcGap(); }
-    if (sub==='history') { this.renderHistory(); }
+    if (sub==='gap')      { this.syncGap(); this.calcGap(); }
+    if (sub==='history')  { this.renderHistory(); }
+    if (sub==='students') { this.renderStudents(); }
   },
 
   addRow() {
@@ -821,7 +889,7 @@ export const scorecardModule = {
       const sc2 = this._barColor(sp);
       return `
         <div class="ssc-drill-subj-row">
-          <div class="ssc-drill-subj-rank">${s.rank ? `<div style="font-size:9px;color:var(--text-muted,#6b6656);letter-spacing:.06em;">Rank</div><div style="font-size:14px;font-weight:700;color:var(--text,#e8e4d8);">${s.rank}</div>` : `<div style="font-size:11px;color:var(--text-muted,#6b6656);">—</div>`}</div>
+
           <div class="ssc-drill-subj-name">${s.name}</div>
           <div class="ssc-drill-subj-score" style="color:${sc2};">${s.obt}/${s.max}</div>
         </div>`;
@@ -851,8 +919,8 @@ export const scorecardModule = {
             <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--text,#e8e4d8);">${(r.subjects||[]).length.toString().padStart(2,'0')}</div>
           </div>
           <div>
-            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Exam Rank</div>
-            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:var(--text,#e8e4d8);">${r.examRank||'—'}</div>
+            <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Grade</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;color:${g.c};">${r.grade}</div>
           </div>
           <div>
             <div style="font-size:10px;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;">Shortfall</div>
@@ -931,3 +999,279 @@ export const scorecardModule = {
     return               {g:'F', desc:'Fail',       bg:'rgba(248,113,113,0.1)',border:'rgba(248,113,113,0.35)',c:'#f87171'};
   },
 };
+
+/* ═══════════════════════════════════════
+   OTHER STUDENTS ROSTER
+   ═══════════════════════════════════════ */
+
+// Appended methods — scorecard.js v4.1
+
+Object.assign(scorecardModule, {
+
+  /* ── Storage helpers ── */
+  _readStudents() {
+    try {
+      const raw = localStorage.getItem(STUDENTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  },
+
+  _writeStudents(list) {
+    try { localStorage.setItem(STUDENTS_KEY, JSON.stringify(list)); }
+    catch(e) { console.warn('[SSC] Students write failed:', e.name); }
+  },
+
+  addStudent() {
+    const list = this._readStudents();
+    if (list.length >= 10) { alert('Maximum 10 students reached.'); return; }
+    const id = list.length + 1;
+    const label = 'Student' + String(id).padStart(2,'0');
+    list.push({
+      id: label,
+      name: '',
+      roll: '',
+      marks: this.sscRows.map(s => ({ subj: s.name, max: s.max, obt: 0 })),
+    });
+    this._writeStudents(list);
+    this.renderStudents();
+  },
+
+  deleteStudent(idx) {
+    if (!confirm('Delete this student?')) return;
+    const list = this._readStudents();
+    list.splice(idx, 1);
+    this._writeStudents(list);
+    this.renderStudents();
+  },
+
+  renderStudents() {
+    const subjects = this.sscRows;
+
+    // Update subject header
+    const snEl = document.getElementById('stu-subject-names');
+    if (snEl) snEl.textContent = subjects.map(s => s.name).join(' · ') || 'No subjects yet';
+
+    const thead = document.getElementById('stu-thead');
+    const tbody = document.getElementById('stu-tbody');
+    if (!thead || !tbody) return;
+
+    let list = this._readStudents();
+
+    // Sync subject columns if subjects changed
+    list = list.map(st => {
+      const existingMarks = st.marks || [];
+      const synced = subjects.map((s, i) => {
+        const found = existingMarks.find(m => m.subj === s.name);
+        return found ? { ...found, subj: s.name, max: s.max } : { subj: s.name, max: s.max, obt: 0 };
+      });
+      return { ...st, marks: synced };
+    });
+
+    // Build header
+    thead.innerHTML = `<tr>
+      <th style="min-width:90px;text-align:left;padding-left:10px;">Student ID</th>
+      <th style="min-width:120px;">Name</th>
+      <th style="min-width:80px;">Roll No</th>
+      ${subjects.map((s,i) => `<th style="min-width:70px;color:#38bdf8;" title="${s.name}">MM${i+1}<br><span style="font-size:9px;color:var(--text-muted,#6b6656);">${s.name.substring(0,6)}</span></th>`).join('')}
+      <th style="min-width:70px;color:#34d399;">TM</th>
+      <th style="min-width:70px;color:#fcd34d;">TP%</th>
+      <th style="min-width:40px;"></th>
+    </tr>`;
+
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="${5 + subjects.length}" style="text-align:center;padding:2rem;color:var(--text-muted,#6b6656);font-family:'JetBrains Mono',monospace;font-size:12px;">
+        No students yet — tap <strong style="color:#34d399;">+ Add Student</strong> above
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map((st, idx) => {
+      const totObt = st.marks.reduce((a,m) => a + (parseFloat(m.obt)||0), 0);
+      const totMax = st.marks.reduce((a,m) => a + (parseFloat(m.max)||0), 0);
+      const pct    = totMax ? ((totObt/totMax)*100).toFixed(1) : '—';
+      const pctClr = totMax ? this._barColor((totObt/totMax)*100) : 'var(--text-muted,#6b6656)';
+
+      const markCells = st.marks.map((m,mi) =>
+        `<td style="text-align:center;padding:4px;">
+          <input type="number" value="${m.obt}" min="0" max="${m.max}"
+            data-stu="${idx}" data-mark="${mi}"
+            onchange="__ssc._onStudentMarkChange(${idx},${mi},this.value)"
+            style="width:52px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:3px 5px;text-align:center;outline:none;-moz-appearance:textfield;">
+        </td>`
+      ).join('');
+
+      return `<tr data-stu-idx="${idx}">
+        <td style="padding:6px 10px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#34d399;">${st.id}</div>
+        </td>
+        <td style="padding:4px;">
+          <input type="text" value="${st.name||''}" placeholder="Student Name"
+            data-stu="${idx}" data-field="name"
+            onchange="__ssc._onStudentInfoChange(${idx},'name',this.value)"
+            style="width:110px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
+        </td>
+        <td style="padding:4px;">
+          <input type="text" value="${st.roll||''}" placeholder="Roll No"
+            data-stu="${idx}" data-field="roll"
+            onchange="__ssc._onStudentInfoChange(${idx},'roll',this.value)"
+            style="width:70px;background:var(--bg,#080807);border:1px solid var(--border,#2a2820);border-radius:4px;color:var(--text,#e8e4d8);font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 6px;outline:none;">
+        </td>
+        ${markCells}
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#34d399;">${totObt}</td>
+        <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${pctClr};">${pct}${totMax?'%':''}</td>
+        <td style="text-align:center;">
+          <button onclick="__ssc.deleteStudent(${idx})" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:13px;padding:2px 5px;" title="Delete student">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  },
+
+  _onStudentMarkChange(stuIdx, markIdx, val) {
+    const list = this._readStudents();
+    if (!list[stuIdx]) return;
+    list[stuIdx].marks[markIdx].obt = parseFloat(val) || 0;
+    this._writeStudents(list);
+    // Refresh totals row only
+    const rows = document.querySelectorAll('#stu-tbody tr');
+    if (rows[stuIdx]) {
+      const st   = list[stuIdx];
+      const totObt = st.marks.reduce((a,m) => a+(parseFloat(m.obt)||0), 0);
+      const totMax = st.marks.reduce((a,m) => a+(parseFloat(m.max)||0), 0);
+      const pct    = totMax ? ((totObt/totMax)*100).toFixed(1) : '—';
+      const pctClr = totMax ? this._barColor((totObt/totMax)*100) : 'var(--text-muted,#6b6656)';
+      const cells  = rows[stuIdx].querySelectorAll('td');
+      const len    = cells.length;
+      cells[len-3].textContent = totObt;
+      cells[len-3].style.color = '#34d399';
+      cells[len-2].textContent = totMax ? pct+'%' : '—';
+      cells[len-2].style.color = pctClr;
+    }
+  },
+
+  _onStudentInfoChange(stuIdx, field, val) {
+    const list = this._readStudents();
+    if (!list[stuIdx]) return;
+    list[stuIdx][field] = val;
+    this._writeStudents(list);
+  },
+
+  /* ═══════════════════════════════════════
+     EXPORT / IMPORT
+     ═══════════════════════════════════════ */
+
+  exportData() {
+    const payload = {
+      version:    '1.0',
+      exportedAt: new Date().toISOString(),
+      app:        'CalcHubApp-ScoreCard',
+      current:    null,
+      history:    [],
+      students:   [],
+      photo:      null,
+    };
+
+    // Current session
+    try {
+      const raw = localStorage.getItem('calchub_ssc_v4');
+      if (raw) payload.current = JSON.parse(raw);
+    } catch {}
+
+    // History
+    try {
+      const raw = localStorage.getItem('calchub_ssc_history');
+      if (raw) payload.history = JSON.parse(raw);
+    } catch {}
+
+    // Other students
+    try {
+      const raw = localStorage.getItem('calchub_ssc_students');
+      if (raw) payload.students = JSON.parse(raw);
+    } catch {}
+
+    // Photo (optional — may be large)
+    try {
+      const photo = localStorage.getItem('calchub_ssc_photo');
+      if (photo) payload.photo = photo;
+    } catch {}
+
+    // Download
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const name = document.getElementById('ssc-name')?.value?.replace(/\s+/g,'_') || 'student';
+    const date = new Date().toISOString().slice(0,10);
+    const a    = Object.assign(document.createElement('a'), {
+      href:     url,
+      download: `calchub_scorecard_${name}_${date}.json`,
+    });
+    a.click();
+    URL.revokeObjectURL(url);
+    console.log('[SSC] Export done ✓');
+  },
+
+  importData(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('ssc-import-status');
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const payload = JSON.parse(ev.target.result);
+        if (payload.app !== 'CalcHubApp-ScoreCard') throw new Error('Not a CalcHub Score Card export file');
+
+        let imported = { current: 0, history: 0, students: 0, photo: false };
+
+        // Restore current session (merge — only if no existing name)
+        if (payload.current) {
+          const existing = localStorage.getItem('calchub_ssc_v4');
+          const existParsed = existing ? JSON.parse(existing) : null;
+          if (!existParsed?.info?.name) {
+            localStorage.setItem('calchub_ssc_v4', JSON.stringify(payload.current));
+            imported.current = 1;
+          }
+        }
+
+        // Merge history records (no duplicates by id)
+        if (payload.history?.length) {
+          const existing = this._readHistory();
+          const existIds = new Set(existing.map(r => r.id));
+          const newRecs  = payload.history.filter(r => !existIds.has(r.id));
+          const merged   = [...existing, ...newRecs].sort((a,b) => b.id - a.id);
+          localStorage.setItem('calchub_ssc_history', JSON.stringify(merged));
+          imported.history = newRecs.length;
+        }
+
+        // Merge students (append, keep existing)
+        if (payload.students?.length) {
+          const existing = this._readStudents();
+          const combined = [...existing];
+          payload.students.forEach(s => {
+            if (!combined.find(e => e.id === s.id)) combined.push(s);
+          });
+          this._writeStudents(combined.slice(0,10));
+          imported.students = payload.students.length;
+        }
+
+        // Restore photo if none exists
+        if (payload.photo && !localStorage.getItem('calchub_ssc_photo')) {
+          try { localStorage.setItem('calchub_ssc_photo', payload.photo); imported.photo = true; } catch {}
+        }
+
+        const msg = `✓ Import done — ${imported.history} history records, ${imported.students} students${imported.current?' + current session':''} merged.`;
+        if (statusEl) { statusEl.textContent = msg; statusEl.style.display = 'block'; }
+        console.log('[SSC]', msg);
+
+        // Reload current session if imported
+        if (imported.current) { this._commitSave(); window.location.reload(); }
+
+      } catch(e) {
+        const msg = '✗ Import failed: ' + e.message;
+        if (statusEl) { statusEl.textContent = msg; statusEl.style.display = 'block'; statusEl.style.color = '#f87171'; }
+        console.error('[SSC] Import error:', e);
+      }
+      input.value = ''; // reset input
+    };
+    reader.readAsText(file);
+  },
+
+});
