@@ -4,7 +4,7 @@
    v3.0: bump forces old broken cache to be cleared on next load
    ============================================================ */
 
-const CACHE_NAME = 'calchubapp-v3.0';
+const CACHE_NAME = 'calchubapp-v3.1';
 
 const STATIC_ASSETS = [
   './index.html',

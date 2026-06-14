@@ -1790,17 +1790,20 @@ input[type="month"].field-input {
     flex-shrink: 0;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    pointer-events: none; /* let the parent label handle all clicks */
   }
 
-  /* But keep the ring animation on label hover/active */
-  label:hover .student-pic-inner,
-  label:active .student-pic-inner {
-    border-color: #38bdf8;
-    background: rgba(56,189,248,.18);
+  /* File input overlay — covers entire circle, fully transparent */
+  #ssc-pic-input {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    font-size: 0 !important;
+    border-radius: 50%;
   }
-  label:hover .student-pic-ring  { animation-duration: 1s; }
-  label:active .student-pic-wrap { transform: scale(0.96); }
 
   .student-pic-inner {
     width: 68px;
@@ -2334,7 +2337,7 @@ input[type="month"].field-input {
 // Runs synchronously before module loads
 // Clears stale service worker caches on version mismatch
 (function() {
-  const APP_V = '3.0';
+  const APP_V = '3.1';
   const stored = localStorage.getItem('calchub_app_version');
   if (stored !== APP_V) {
     localStorage.setItem('calchub_app_version', APP_V);
