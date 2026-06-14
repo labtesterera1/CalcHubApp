@@ -554,43 +554,19 @@ export const scorecardModule = {
     // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
     const picInput = document.getElementById('ssc-pic-input');
     if (picInput) {
-      const handlePhoto = (e) => {
+      picInput.addEventListener('change', (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        // Use FileReader as primary (more compatible than createObjectURL on some Android browsers)
         const reader = new FileReader();
         reader.onload = (ev) => {
-          const dataUrlFull = ev.target.result;
-          // Compress via canvas
-          const img = new Image();
-          img.onload = () => {
-            const MAX = 400;
-            const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-            const canvas = document.createElement('canvas');
-            canvas.width  = Math.round(img.width  * scale);
-            canvas.height = Math.round(img.height * scale);
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-            this.studentPhoto = dataUrl;
-            photoWrite(dataUrl);
-            this._renderPic(dataUrl);
-            console.log('[SSC] Photo saved ✓', canvas.width + 'x' + canvas.height);
-          };
-          img.onerror = () => {
-            // Canvas compression failed — save original directly
-            this.studentPhoto = dataUrlFull;
-            photoWrite(dataUrlFull);
-            this._renderPic(dataUrlFull);
-            console.log('[SSC] Photo saved (uncompressed) ✓');
-          };
-          img.src = dataUrlFull;
+          const dataUrl = ev.target.result; // use full size — no canvas needed
+          this.studentPhoto = dataUrl;
+          photoWrite(dataUrl);
+          this._renderPic(dataUrl);
         };
-        reader.onerror = () => console.error('[SSC] FileReader failed');
         reader.readAsDataURL(file);
-        // Reset input so same file can be picked again
-        e.target.value = '';
-      };
-      picInput.addEventListener('change', handlePhoto);
+        // NOTE: do NOT reset e.target.value here — it cancels the FileReader on Android
+      });
     }
   },
 
