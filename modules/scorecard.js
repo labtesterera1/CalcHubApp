@@ -807,8 +807,14 @@ export const scorecardModule = {
       const e=el(id); if(e) e.value='';
     });
     const tr=el('ssc-tot-rank'); if(tr) tr.value='';
-    const inner=el('ssc-pic-inner');
-    if (inner) { inner.innerHTML='<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>'; inner.style.padding=''; }
+    // Remove photo overlay image and restore placeholder
+    const wrap = el('ssc-pic-wrap');
+    if (wrap) {
+      const old = wrap.querySelector('img.stu-photo-img');
+      if (old) old.remove();
+      const inner = wrap.querySelector('#ssc-pic-inner');
+      if (inner) { inner.style.display = ''; inner.innerHTML = '<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>'; inner.style.padding = ''; }
+    }
     const rp=el('ssc-report-pic'); if(rp) rp.innerHTML='🎓';
     // Clear storage
     try { localStorage.removeItem(SSC_KEY); localStorage.removeItem(PHOTO_KEY); } catch {}
@@ -820,12 +826,24 @@ export const scorecardModule = {
      PHOTO
      ═══════════════════════════════════════ */
   _renderPic(src) {
-    const inner = document.getElementById('ssc-pic-inner');
-    if (inner) {
-      inner.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
-      inner.style.padding = '0';
-      inner.style.flexDirection = 'row';
+    const wrap = document.getElementById('ssc-pic-wrap');
+    if (wrap) {
+      // Remove old photo if any
+      const old = wrap.querySelector('img.stu-photo-img');
+      if (old) old.remove();
+      // Hide the inner placeholder (icon + hint)
+      const inner = wrap.querySelector('#ssc-pic-inner');
+      if (inner) inner.style.display = 'none';
+      // Insert photo as absolute fill BELOW the input overlay (z-index:5 < input z-index:10)
+      const img = document.createElement('img');
+      img.src = src;
+      img.className = 'stu-photo-img';
+      img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:5;display:block;';
+      // Insert before the input (so input stays on top)
+      const input = wrap.querySelector('input[type=file]');
+      wrap.insertBefore(img, input);
     }
+    // Also update report pic mini avatar
     const rp = document.getElementById('ssc-report-pic');
     if (rp) rp.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
   },
