@@ -2070,6 +2070,24 @@ input[type="month"].field-input {
     text-align: right;
   }
 
+
+  /* ═══════════════════════════════════════════
+     OTHER STUDENTS + EXPORT/IMPORT TABS
+     ═══════════════════════════════════════════ */
+  #subtab-students.active  { background:rgba(52,211,153,.1);  color:#34d399; border:1px solid rgba(52,211,153,.3); }
+  #subtab-students         { color:#34d399; }
+  #subtab-transfer.active  { background:rgba(192,132,252,.1); color:#c084fc; border:1px solid rgba(192,132,252,.3); }
+  #subtab-transfer         { color:#c084fc; }
+
+  /* Student table inputs clean spin */
+  #stu-table input[type=number]::-webkit-outer-spin-button,
+  #stu-table input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+
+  /* Drill-down: no rank column — wider name */
+  .ssc-drill-subj-row { gap: 16px; }
+  .ssc-drill-subj-name { font-size: 15px; }
+  .ssc-drill-subj-score { font-size: 15px; min-width: 70px; }
+
 </style>
 </head>
 
