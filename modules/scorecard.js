@@ -111,16 +111,18 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Photo upload -->
-        <div class="student-pic-wrap" id="ssc-pic-wrap" onclick="document.getElementById('ssc-pic-input').click()" title="Tap to add student photo">
-          <div class="student-pic-inner" id="ssc-pic-inner">
-            <span class="student-pic-icon">🎓</span>
-            <span class="student-pic-hint">Add<br>Photo</span>
+        <!-- Photo upload — label wraps input for native mobile file picker -->
+        <label for="ssc-pic-input" title="Tap to add student photo" style="cursor:pointer;display:block;">
+          <div class="student-pic-wrap" id="ssc-pic-wrap">
+            <div class="student-pic-inner" id="ssc-pic-inner">
+              <span class="student-pic-icon">🎓</span>
+              <span class="student-pic-hint">Add<br>Photo</span>
+            </div>
+            <div class="student-pic-ring"></div>
+            <div class="student-pic-badge">📷</div>
           </div>
-          <div class="student-pic-ring"></div>
-          <div class="student-pic-badge">📷</div>
-        </div>
-        <input type="file" id="ssc-pic-input" accept="image/*" style="display:none">
+        </label>
+        <input type="file" id="ssc-pic-input" accept="image/*" style="display:none;position:absolute;width:0;height:0;opacity:0;">
 
         <!-- Info fields -->
         <div class="student-fields">
@@ -547,29 +549,46 @@ export const scorecardModule = {
       dateEl.value = now.toISOString().slice(0,10);
     }
 
-    // Wire photo input
+    // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
     const picInput = document.getElementById('ssc-pic-input');
     if (picInput) {
-      picInput.addEventListener('change', e => {
-        const file = e.target.files[0];
+      const handlePhoto = (e) => {
+        const file = e.target.files?.[0];
         if (!file) return;
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          URL.revokeObjectURL(url);
-          const MAX = 400, scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-          this.studentPhoto = dataUrl;
-          photoWrite(dataUrl);   // ← write immediately
-          this._renderPic(dataUrl);
-          console.log('[SSC] Photo saved ✓');
+        // Use FileReader as primary (more compatible than createObjectURL on some Android browsers)
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrlFull = ev.target.result;
+          // Compress via canvas
+          const img = new Image();
+          img.onload = () => {
+            const MAX = 400;
+            const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width  = Math.round(img.width  * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+            this.studentPhoto = dataUrl;
+            photoWrite(dataUrl);
+            this._renderPic(dataUrl);
+            console.log('[SSC] Photo saved ✓', canvas.width + 'x' + canvas.height);
+          };
+          img.onerror = () => {
+            // Canvas compression failed — save original directly
+            this.studentPhoto = dataUrlFull;
+            photoWrite(dataUrlFull);
+            this._renderPic(dataUrlFull);
+            console.log('[SSC] Photo saved (uncompressed) ✓');
+          };
+          img.src = dataUrlFull;
         };
-        img.src = url;
-      });
+        reader.onerror = () => console.error('[SSC] FileReader failed');
+        reader.readAsDataURL(file);
+        // Reset input so same file can be picked again
+        e.target.value = '';
+      };
+      picInput.addEventListener('change', handlePhoto);
     }
   },
 
@@ -802,9 +821,13 @@ export const scorecardModule = {
      ═══════════════════════════════════════ */
   _renderPic(src) {
     const inner = document.getElementById('ssc-pic-inner');
-    if (inner) { inner.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`; inner.style.padding='0'; }
+    if (inner) {
+      inner.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+      inner.style.padding = '0';
+      inner.style.flexDirection = 'row';
+    }
     const rp = document.getElementById('ssc-report-pic');
-    if (rp)    { rp.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`; }
+    if (rp) rp.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
   },
 
   /* ═══════════════════════════════════════
