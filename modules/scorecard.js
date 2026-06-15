@@ -111,19 +111,20 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Photo upload -->
-        <div id="ssc-pic-wrap" style="position:relative;width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);flex-shrink:0;cursor:pointer;">
-          <!-- Placeholder shown before photo -->
-          <div id="ssc-pic-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:#38bdf8;text-align:center;line-height:1.3;gap:2px;pointer-events:none;">
-            <span style="font-size:22px;">🎓</span>
-            <span style="font-size:9px;letter-spacing:.04em;">ADD<br>PHOTO</span>
+        <!-- Student photo via URL -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;">
+          <!-- Photo display circle -->
+          <div id="ssc-pic-wrap" style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div id="ssc-pic-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#38bdf8;text-align:center;line-height:1.4;gap:1px;">
+              <span style="font-size:20px;">🎓</span>
+              <span>PHOTO</span>
+            </div>
+            <img id="ssc-pic-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;">
           </div>
-          <!-- Photo shown after selection -->
-          <img id="ssc-pic-img" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;pointer-events:none;">
-          <!-- Camera badge -->
-          <div style="position:absolute;bottom:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#38bdf8;display:flex;align-items:center;justify-content:center;font-size:10px;z-index:5;pointer-events:none;border:2px solid #0c0b09;">📷</div>
-          <!-- Transparent file input covers entire circle -->
-          <input type="file" id="ssc-pic-input" accept="image/*" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:10;">
+          <!-- URL input below circle -->
+          <input type="url" id="ssc-pic-url" placeholder="Paste photo URL"
+            oninput="__ssc._onPhotoUrl(this.value)"
+            style="width:90px;font-size:9px;font-family:'JetBrains Mono',monospace;background:var(--bg,#080807);border:1px solid rgba(56,189,248,.3);border-radius:4px;color:#38bdf8;padding:3px 5px;outline:none;text-align:center;">
         </div>
 
         <!-- Info fields -->
@@ -552,26 +553,11 @@ export const scorecardModule = {
     }
 
     // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
-    const picInput = document.getElementById('ssc-pic-input');
-    if (picInput) {
-      picInput.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target.result;
-          if (!dataUrl || dataUrl === 'data:') {
-            console.warn('[SSC] FileReader returned empty result');
-            return;
-          }
-          this.studentPhoto = dataUrl;
-          const saved = photoWrite(dataUrl);
-          console.log('[SSC] Photo read ok, size:', Math.round(dataUrl.length/1024)+'KB, saved:', saved);
-          this._renderPic(dataUrl);
-        };
-        reader.onerror = (e) => console.error('[SSC] FileReader error:', e);
-        reader.readAsDataURL(file);
-      });
+    // Restore URL input if photo URL saved
+    const urlInput = document.getElementById('ssc-pic-url');
+    if (urlInput && this.studentPhoto) {
+      // Only show URL if it's actually a URL (not base64)
+      if (this.studentPhoto.startsWith('http')) urlInput.value = this.studentPhoto;
     }
   },
 
@@ -790,11 +776,11 @@ export const scorecardModule = {
       const e=el(id); if(e) e.value='';
     });
     const tr=el('ssc-tot-rank'); if(tr) tr.value='';
-    // Reset photo — hide img, show placeholder
-    const ph  = el('ssc-pic-placeholder');
-    const img = el('ssc-pic-img');
-    if (ph)  ph.style.display  = '';
-    if (img) { img.style.display = 'none'; img.src = ''; }
+    // Reset photo
+    this.studentPhoto = null;
+    this._renderPic('');
+    const urlInput = el('ssc-pic-url');
+    if (urlInput) urlInput.value = '';
     const rp=el('ssc-report-pic'); if(rp) rp.innerHTML='🎓';
     // Clear storage
     try { localStorage.removeItem(SSC_KEY); localStorage.removeItem(PHOTO_KEY); } catch {}
@@ -805,15 +791,38 @@ export const scorecardModule = {
   /* ═══════════════════════════════════════
      PHOTO
      ═══════════════════════════════════════ */
+  _onPhotoUrl(url) {
+    url = url.trim();
+    if (!url) {
+      // Clear photo
+      this.studentPhoto = null;
+      photoWrite('');
+      this._renderPic('');
+      return;
+    }
+    // Save and show immediately — works with any valid image URL
+    this.studentPhoto = url;
+    photoWrite(url);
+    this._renderPic(url);
+  },
+
   _renderPic(src) {
-    // Show photo, hide placeholder
     const ph  = document.getElementById('ssc-pic-placeholder');
     const img = document.getElementById('ssc-pic-img');
-    if (ph)  ph.style.display  = 'none';
-    if (img) { img.src = src; img.style.display = 'block'; }
-    // Mini avatar in report banner
+    if (!src) {
+      // Clear — show placeholder
+      if (ph)  ph.style.display = '';
+      if (img) { img.style.display = 'none'; img.src = ''; }
+    } else {
+      if (ph)  ph.style.display  = 'none';
+      if (img) { img.src = src; img.style.display = 'block'; }
+    }
     const rp = document.getElementById('ssc-report-pic');
-    if (rp)  rp.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;">`;
+    if (rp) {
+      rp.innerHTML = src
+        ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" onerror="this.style.display='none'">`
+        : '🎓';
+    }
   },
 
   /* ═══════════════════════════════════════
