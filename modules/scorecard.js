@@ -111,7 +111,6 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Student photo upload — exact working pattern -->
         <div class="student-pic-wrap" id="ssc-pic-wrap" onclick="document.getElementById('ssc-pic-input').click()" title="Tap to add student photo">
           <div class="student-pic-inner" id="ssc-pic-inner">
             <span class="student-pic-icon">🎓</span>
@@ -547,14 +546,10 @@ export const scorecardModule = {
       dateEl.value = now.toISOString().slice(0,10);
     }
 
-    // Wire photo input — remove first to prevent duplicate listeners on re-init
+    // Wire photo input
     const picInput = document.getElementById('ssc-pic-input');
     if (picInput) {
-      // Store handler on element so we can remove it before re-adding
-      if (picInput._sscHandler) {
-        picInput.removeEventListener('change', picInput._sscHandler);
-      }
-      picInput._sscHandler = (e) => {
+      picInput.addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
         const img = new Image();
@@ -563,17 +558,17 @@ export const scorecardModule = {
           URL.revokeObjectURL(url);
           const MAX = 400, scale = Math.min(1, MAX / Math.max(img.width, img.height));
           const canvas = document.createElement('canvas');
-          canvas.width  = Math.round(img.width  * scale);
+          canvas.width = Math.round(img.width * scale);
           canvas.height = Math.round(img.height * scale);
           canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
           this.studentPhoto = dataUrl;
           photoWrite(dataUrl);
           this._renderPic(dataUrl);
+          console.log('[SSC] Photo saved ✓');
         };
         img.src = url;
-      };
-      picInput.addEventListener('change', picInput._sscHandler);
+      });
     }
   },
 
@@ -792,15 +787,10 @@ export const scorecardModule = {
       const e=el(id); if(e) e.value='';
     });
     const tr=el('ssc-tot-rank'); if(tr) tr.value='';
-    // Reset photo — restore placeholder
     this.studentPhoto = null;
-    const inner = document.getElementById('ssc-pic-inner');
-    if (inner) {
-      inner.innerHTML = '<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>';
-      inner.style.padding = '';
-    }
-    const rp = document.getElementById('ssc-report-pic');
-    if (rp) rp.innerHTML = '🎓';
+    const inner=document.getElementById('ssc-pic-inner');
+    if (inner) { inner.innerHTML='<span class="student-pic-icon">🎓</span><span class="student-pic-hint">Add<br>Photo</span>'; inner.style.padding=''; }
+    const rp=document.getElementById('ssc-report-pic'); if(rp) rp.innerHTML='🎓';
     // Clear storage
     try { localStorage.removeItem(SSC_KEY); localStorage.removeItem(PHOTO_KEY); } catch {}
     this.renderRows();
@@ -812,14 +802,11 @@ export const scorecardModule = {
      ═══════════════════════════════════════ */
 
 
-  _renderPic(src) {
+    _renderPic(src) {
     const inner = document.getElementById('ssc-pic-inner');
-    if (inner) {
-      inner.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      inner.style.padding = '0';
-    }
+    if (inner) { inner.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`; inner.style.padding='0'; }
     const rp = document.getElementById('ssc-report-pic');
-    if (rp) rp.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    if (rp)    { rp.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`; }
   },
 
   /* ═══════════════════════════════════════
@@ -1890,7 +1877,13 @@ Object.assign(scorecardModule, {
           if (statusEl) { statusEl.textContent = msg; statusEl.style.color = '#34d399'; statusEl.style.display = 'block'; }
           console.log('[SSC]', msg);
           // Re-init module without page reload
-          setTimeout(() => { this.init(); this.switchSub('scorecard'); }, 400);
+          setTimeout(() => {
+            // Re-render full DOM first so listeners attach to fresh elements
+            const container = document.getElementById('mod-container');
+            if (container) { container.innerHTML = this.render(); }
+            this.init();
+            this.switchSub('scorecard');
+          }, 400);
 
         } else {
           /* ── MERGE ── add imported records to existing */
@@ -1943,7 +1936,12 @@ Object.assign(scorecardModule, {
           console.log('[SSC]', msg);
 
           // Re-init to show imported data without page reload
-          if (imported.current) setTimeout(() => { this.init(); this.switchSub('scorecard'); }, 400);
+          if (imported.current) setTimeout(() => {
+            const container = document.getElementById('mod-container');
+            if (container) { container.innerHTML = this.render(); }
+            this.init();
+            this.switchSub('scorecard');
+          }, 400);
         }
 
       } catch(e) {
