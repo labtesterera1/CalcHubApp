@@ -547,11 +547,14 @@ export const scorecardModule = {
       dateEl.value = now.toISOString().slice(0,10);
     }
 
-    // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
-    // Wire photo input — exact working pattern from v4.0
+    // Wire photo input — remove first to prevent duplicate listeners on re-init
     const picInput = document.getElementById('ssc-pic-input');
     if (picInput) {
-      picInput.addEventListener('change', e => {
+      // Store handler on element so we can remove it before re-adding
+      if (picInput._sscHandler) {
+        picInput.removeEventListener('change', picInput._sscHandler);
+      }
+      picInput._sscHandler = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const img = new Image();
@@ -569,7 +572,8 @@ export const scorecardModule = {
           this._renderPic(dataUrl);
         };
         img.src = url;
-      });
+      };
+      picInput.addEventListener('change', picInput._sscHandler);
     }
   },
 
