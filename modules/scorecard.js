@@ -111,20 +111,22 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Student photo via URL -->
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;">
-          <!-- Photo display circle -->
-          <div id="ssc-pic-wrap" style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <!-- Student photo — tap circle to set via URL prompt -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;">
+          <div id="ssc-pic-wrap"
+            onclick="__ssc._promptPhotoUrl()"
+            title="Tap to set photo URL"
+            style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;position:relative;">
             <div id="ssc-pic-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#38bdf8;text-align:center;line-height:1.4;gap:1px;">
               <span style="font-size:20px;">🎓</span>
-              <span>PHOTO</span>
+              <span style="font-size:8px;letter-spacing:.03em;">TAP TO<br>ADD PHOTO</span>
             </div>
-            <img id="ssc-pic-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;">
+            <img id="ssc-pic-img" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;" onerror="this.style.display='none';document.getElementById('ssc-pic-placeholder').style.display='flex'">
           </div>
-          <!-- URL input below circle -->
-          <input type="url" id="ssc-pic-url" placeholder="Paste photo URL"
-            oninput="__ssc._onPhotoUrl(this.value)"
-            style="width:90px;font-size:9px;font-family:'JetBrains Mono',monospace;background:var(--bg,#080807);border:1px solid rgba(56,189,248,.3);border-radius:4px;color:#38bdf8;padding:3px 5px;outline:none;text-align:center;">
+          <button onclick="__ssc._promptPhotoUrl()"
+            style="font-size:9px;font-family:'JetBrains Mono',monospace;background:transparent;border:none;color:rgba(56,189,248,.6);cursor:pointer;padding:0;text-decoration:underline;">
+            📷 set photo url
+          </button>
         </div>
 
         <!-- Info fields -->
@@ -553,12 +555,7 @@ export const scorecardModule = {
     }
 
     // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
-    // Restore URL input if photo URL saved
-    const urlInput = document.getElementById('ssc-pic-url');
-    if (urlInput && this.studentPhoto) {
-      // Only show URL if it's actually a URL (not base64)
-      if (this.studentPhoto.startsWith('http')) urlInput.value = this.studentPhoto;
-    }
+    // Photo restored above — nothing extra needed
   },
 
   cleanup() {
@@ -779,8 +776,6 @@ export const scorecardModule = {
     // Reset photo
     this.studentPhoto = null;
     this._renderPic('');
-    const urlInput = el('ssc-pic-url');
-    if (urlInput) urlInput.value = '';
     const rp=el('ssc-report-pic'); if(rp) rp.innerHTML='🎓';
     // Clear storage
     try { localStorage.removeItem(SSC_KEY); localStorage.removeItem(PHOTO_KEY); } catch {}
@@ -791,19 +786,22 @@ export const scorecardModule = {
   /* ═══════════════════════════════════════
      PHOTO
      ═══════════════════════════════════════ */
-  _onPhotoUrl(url) {
-    url = url.trim();
-    if (!url) {
-      // Clear photo
+  _promptPhotoUrl() {
+    const current = this.studentPhoto?.startsWith('http') ? this.studentPhoto : '';
+    const url = window.prompt('Paste image URL (e.g. https://site.com/photo.jpg) — leave blank to remove:', current);
+
+
+    if (url === null) return; // user cancelled
+    const trimmed = url.trim();
+    if (!trimmed) {
       this.studentPhoto = null;
       photoWrite('');
       this._renderPic('');
       return;
     }
-    // Save and show immediately — works with any valid image URL
-    this.studentPhoto = url;
-    photoWrite(url);
-    this._renderPic(url);
+    this.studentPhoto = trimmed;
+    photoWrite(trimmed);
+    this._renderPic(trimmed);
   },
 
   _renderPic(src) {
