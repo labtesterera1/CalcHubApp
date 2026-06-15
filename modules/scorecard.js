@@ -111,22 +111,20 @@ export const scorecardModule = {
 
       <!-- Student header -->
       <div class="student-header">
-        <!-- Student photo — tap circle to set via URL prompt -->
+        <!-- Student photo upload -->
         <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;">
-          <div id="ssc-pic-wrap"
-            onclick="__ssc._promptPhotoUrl()"
-            title="Tap to set photo URL"
-            style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;position:relative;">
-            <div id="ssc-pic-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#38bdf8;text-align:center;line-height:1.4;gap:1px;">
+          <!-- Circle shows photo or placeholder -->
+          <div id="ssc-pic-wrap" style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;">
+            <div id="ssc-pic-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#38bdf8;text-align:center;line-height:1.4;gap:1px;pointer-events:none;">
               <span style="font-size:20px;">🎓</span>
-              <span style="font-size:8px;letter-spacing:.03em;">TAP TO<br>ADD PHOTO</span>
             </div>
-            <img id="ssc-pic-img" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;" onerror="this.style.display='none';document.getElementById('ssc-pic-placeholder').style.display='flex'">
+            <img id="ssc-pic-img" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;display:none;pointer-events:none;">
           </div>
-          <button onclick="__ssc._promptPhotoUrl()"
-            style="font-size:9px;font-family:'JetBrains Mono',monospace;background:transparent;border:none;color:rgba(56,189,248,.6);cursor:pointer;padding:0;text-decoration:underline;">
-            📷 set photo url
-          </button>
+          <!-- Real file input button - browser treats this as trusted gesture -->
+          <label style="display:inline-block;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);border-radius:5px;padding:4px 8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:9px;color:#38bdf8;text-align:center;-webkit-tap-highlight-color:transparent;">
+            📷 Add Photo
+            <input type="file" id="ssc-pic-input" accept="image/*" style="display:none;">
+          </label>
         </div>
 
         <!-- Info fields -->
@@ -555,7 +553,8 @@ export const scorecardModule = {
     }
 
     // Wire photo input — use both 'change' and 'input' for maximum browser compatibility
-    // Photo restored above — nothing extra needed
+    // Wire photo input
+    this._setupPhotoInput();
   },
 
   cleanup() {
@@ -786,22 +785,21 @@ export const scorecardModule = {
   /* ═══════════════════════════════════════
      PHOTO
      ═══════════════════════════════════════ */
-  _promptPhotoUrl() {
-    const current = this.studentPhoto?.startsWith('http') ? this.studentPhoto : '';
-    const url = window.prompt('Paste image URL (e.g. https://site.com/photo.jpg) — leave blank to remove:', current);
-
-
-    if (url === null) return; // user cancelled
-    const trimmed = url.trim();
-    if (!trimmed) {
-      this.studentPhoto = null;
-      photoWrite('');
-      this._renderPic('');
-      return;
-    }
-    this.studentPhoto = trimmed;
-    photoWrite(trimmed);
-    this._renderPic(trimmed);
+  _setupPhotoInput() {
+    const input = document.getElementById('ssc-pic-input');
+    if (!input) return;
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = e.target.result;
+        this.studentPhoto = data;
+        photoWrite(data);
+        this._renderPic(data);
+      };
+      reader.readAsDataURL(file);
+    });
   },
 
   _renderPic(src) {
